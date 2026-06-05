@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+char *fileRaw;
+
 int OpenFile(char *filePath);
 
 int main(int argc, char **argv){
@@ -12,8 +14,10 @@ int main(int argc, char **argv){
 	
 	if(!OpenFile(argv[1])){
 		fprintf(stderr, "\nError: Couldn't open file.\n");	
+		return 1;
 	}
-	
+		
+	free(fileRaw);
 
 	return 0;
 }
@@ -22,9 +26,9 @@ void ReadFile(FILE *file){
 	fseek(file,0,SEEK_END);
 	long size = ftell(file);
 	fseek(file,0,SEEK_SET);
-	char p[size];
-	fread(p, 1, size, file);
-	
+	fileRaw = (char*) malloc(sizeof(char) * size);
+	fread(fileRaw, sizeof(char), size, file);
+		
 }
 
 int OpenFile(char *filePath){
