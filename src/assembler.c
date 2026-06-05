@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "tokenizer.h"
 
 char *fileRaw;
+size_t rawSize = 0;
 
 int OpenFile(char *filePath);
 
@@ -16,7 +18,12 @@ int main(int argc, char **argv){
 		fprintf(stderr, "\nError: Couldn't open file.\n");	
 		return 1;
 	}
-		
+	
+	if(GetTokens(fileRaw, rawSize) == NULL){
+		fprintf(stderr, "\nError: Couldn't tokenize file.\n");
+		return 1;
+	}
+	
 	free(fileRaw);
 
 	return 0;
@@ -24,11 +31,11 @@ int main(int argc, char **argv){
 
 void ReadFile(FILE *file){
 	fseek(file,0,SEEK_END);
-	long size = ftell(file);
+	size_t size = ftell(file);
 	fseek(file,0,SEEK_SET);
 	fileRaw = (char*) malloc(sizeof(char) * size);
 	fread(fileRaw, sizeof(char), size, file);
-		
+	rawSize = size;	
 }
 
 int OpenFile(char *filePath){
