@@ -1,9 +1,13 @@
-.PHONE: clean saira
+.PHONY: all clean
 
-saira: saira.c
-	gcc -o saira saira.c
-	./saira
+all: lc3 assembler 
+
+lc3: lc3.c
+	gcc -o lc3 lc3.c
+
+assembler: assembler.c
+	gcc -o assembler assembler.c
 
 clean:
-	rm ./saira
+	rm ./lc3 ./assembler
 

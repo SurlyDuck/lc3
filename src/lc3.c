@@ -50,12 +50,14 @@ uint16_t reg[REG_COUNT];
 int main(int argc, char **argv){
 	
 	if(argc < 2){
-		fprintf(stderr, "Usage: saira image.hex \n");
+		fprintf(stderr, "Usage: lc3 image.dat \n");
 		return 1;
 	}
 	
 	//TODO: loading hex to memory
-
+	
+	enum {PC_START = 0x3000};
+	reg[REG_PC] = PC_START;
 
 	return 0;
 }
