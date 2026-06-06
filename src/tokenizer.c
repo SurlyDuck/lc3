@@ -1,11 +1,33 @@
 #include "tokenizer.h"
-#include <assert.h>
 
 typedef enum{
 	SEARCHING = 0,
 	IGNORING, 
 	READING
 }token_status;
+
+char *tokenStrings[] =  {
+"",		/* START_OPCODES = 0, */
+"ADD",	/* OP_ADD, */
+"AND",	/* OP_AND, */
+"BR",		/* OP_BR, */
+"JMP",	/* OP_JMP, */
+"JSR",	/* OP_JSR, */
+"JSRR",	/* OP_JSRR, */
+"LD",		/* OP_LD, */
+"LDI",	/* OP_LDI, */
+"LDR",	/* OP_LDR, */
+"LEA",	/* OP_LEA, */
+"NOT",	/* OP_NOT, */
+"RET",	/* OP_RET, */
+"RTI",	/* OP_RTI, */
+"ST",		/* OP_ST, */
+"STI",	/* OP_STI, */
+"SRT",	/* OP_STR, */
+"TRAP",	/* OP_TRAP, */
+"",		/* END_OPCODES, */
+
+};
 
 token** GetTokens(char *raw, size_t rawSize){
 	
@@ -14,8 +36,13 @@ token** GetTokens(char *raw, size_t rawSize){
 	token currentToken = {0};
 	size_t currentLine = 0;
 	int currentTokenCursor    = 0;
-	char currentTokenText[256] = {0};
+	char currentTokenText[TOKEN_MAX_SIZE] = {0};
 	while((rawSize - cursor) > 0){
+		if(currentTokenCursor >= TOKEN_MAX_SIZE){
+			fprintf(stderr, "[ERROR]: at line %lu, token '%s' is too big", currentLine,currentTokenText);
+			return NULL;
+		}
+	
 		++cursor;
 		char b = raw[cursor];
 		if(b == '\n') ++currentLine;
@@ -39,9 +66,10 @@ token** GetTokens(char *raw, size_t rawSize){
 			currentTokenCursor++;
 			currentToken.text[currentTokenCursor] = b;
 		}else if(currentStatus == READING && (b == ' ' || b == ',' || b == '\t')){
-			/*TODO: token is finished, indentifiy it here and add to array */
+			/*TODO: token is finished, find its kind and add to an array */
 			currentStatus = SEARCHING;
-			printf("Current Token: %s\n",currentToken.text);
+			currentToken.line = currentLine;
+			printf("Current Token at line %lu: %s\n",currentToken.line, currentToken.text);
 			currentTokenCursor = 0;
 			memset(&currentTokenText,'\0', 256);
 		}	
