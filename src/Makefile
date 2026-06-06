@@ -1,6 +1,6 @@
 .PHONY: all clean
 
-CFLAGS:= -std=c11 -Wall -Wextra -pedantic
+CFLAGS:= -ggdb -std=c11 -Wall -Wextra -pedantic
 CC:= gcc
 
 all: lc3 assembler 
