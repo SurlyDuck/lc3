@@ -13,6 +13,9 @@ typedef enum{
 	OP_ADD,
 	OP_AND,
 	OP_BR,
+	OP_BRn,
+	OP_BRz,
+	OP_BRp,
 	OP_JMP,
 	OP_JSR,
 	OP_JSRR,
@@ -56,7 +59,8 @@ typedef enum{
 	LABEL,
 	IMMEDIATE,
 	STRING,
-	INVALID /* most of the times will just be a label also */
+	INVALID, /* most of the times will just be a label also */
+	TOKENS_COUNT
 }token_id;
 
 typedef enum{

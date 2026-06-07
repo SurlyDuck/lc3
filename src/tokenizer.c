@@ -7,26 +7,57 @@ typedef enum{
 }token_status;
 
 char *tokenStrings[] =  {
-"",		/* START_OPCODES = 0, */
-"ADD",	/* OP_ADD, */
-"AND",	/* OP_AND, */
-"BR",		/* OP_BR, */
-"JMP",	/* OP_JMP, */
-"JSR",	/* OP_JSR, */
-"JSRR",	/* OP_JSRR, */
-"LD",		/* OP_LD, */
-"LDI",	/* OP_LDI, */
-"LDR",	/* OP_LDR, */
-"LEA",	/* OP_LEA, */
-"NOT",	/* OP_NOT, */
-"RET",	/* OP_RET, */
-"RTI",	/* OP_RTI, */
-"ST",		/* OP_ST, */
-"STI",	/* OP_STI, */
-"SRT",	/* OP_STR, */
-"TRAP",	/* OP_TRAP, */
-"",		/* END_OPCODES, */
-
+	"",		
+	"ADD",	/* OP_ADD, */
+	"AND",	/* OP_AND, */
+	"BR",		/* OP_BR, */
+	"BRn",
+	"BRz",
+	"BRp",
+	"JMP",	/* OP_JMP, */
+	"JSR",	/* OP_JSR, */
+	"JSRR",	/* OP_JSRR, */
+	"LD",		/* OP_LD, */
+	"LDI",	/* OP_LDI, */
+	"LDR",	/* OP_LDR, */
+	"LEA",	/* OP_LEA, */
+	"NOT",	/* OP_NOT, */
+	"RET",	/* OP_RET, */
+	"RTI",	/* OP_RTI, */
+	"ST",		/* OP_ST, */
+	"STI",	/* OP_STI, */
+	"SRT",	/* OP_STR, */
+	"TRAP",	/* OP_TRAP, */
+	"",		/* END_OPCODES, */
+	"",     
+	"REG0",	/* REG0,*/
+	"REG1",	/* REG1,*/
+	"REG2",	/* REG2,*/
+	"REG3",	/* REG3,*/
+	"REG4",	/* REG4,*/
+	"REG5",	/* REG5,*/
+	"REG6",	/* REG6,*/
+	"REG7",	/* REG7,*/
+	"",      /* END REGISTERS */
+	"",
+	"GETC",	/* GETC,*/
+	"OUT",	/* OUT,*/
+	"PUTS",	/* PUTS,*/
+	"IN",		/* IN,*/
+	"PUTSP",	/* PUTSP,*/
+	"HALT",	/* HALT,*/
+	"",		/* END_TRAP_ROUTINES, */
+	"", 
+	".ORIG",           /* ORIG,*/
+	".END",            /* END,*/
+	".BLKW",           /* BLKW,*/
+	".FILL",           /* FILL,*/
+	".STRINGZ",        /* STRINGZ,*/
+	"",                /* END PSEUDO OPCODES */
+	"LABEL",
+	"#0",      /* IMMEDIATE */
+	"string", 
+	"invalid"
 };
 
 token** GetTokens(char *raw, size_t rawSize){
@@ -63,28 +94,59 @@ token** GetTokens(char *raw, size_t rawSize){
 		}
 		else if(currentStatus != READING) continue;	
 		
-		if(currentStatus == READING && ((b != ' ' && b != '\t' && b != '"') || (isString && b != '"'))){
+		if(currentStatus == READING && ((b != ' ' && b != '\t' && b != '"' && b != '\n') || (isString && b != '"'))){
 			currentTokenCursor++;
 			currentToken.text[currentTokenCursor] = b;
-		}else if(currentStatus == READING && ((b == ' ' || b == ',' || b == '\t') || (isString && b == '"'))){
-			/*TODO: token is finished, find its kind and add to an array */
+		}else if(currentStatus == READING && ((b == ' ' || b == ',' || b == '\t' || b == '\n') || (isString && b == '"'))){
+			/* get token kind, add to tokens array and keep searching */
 			if(isString){
 				/* need to remove double quotes from the left */
 				for(int i = 0; i < currentTokenCursor; ++i){
 					currentTokenText[i] = currentTokenText[i+1];
 				}
-					currentTokenText[currentTokenCursor] = '\0';
+				currentTokenText[currentTokenCursor] = '\0';
+				currentToken.kind = KIND_STRING;
+			}else if(currentTokenText[0] == '#' || currentTokenText[0] == 'x' || currentTokenText[0] == 'X'){
+				currentToken.kind = KIND_IMMEDIATE;
+				for(int i = 1; i < currentTokenCursor+1; ++i){
+					if(currentTokenText[i] == '-' || currentTokenText[i] == '+') continue;
+					int r = (int)(currentTokenText[i] - '0');
+					if(r > 9 || r < 0){
+						currentToken.kind = KIND_INVALID;
+						break;
+					}
+				}
+			}else if (currentTokenText[0] > '0' && currentTokenText[0] <= '9'){
+				currentToken.kind = KIND_INVALID;
+			}else{
+				for(int id = 0; id < TOKENS_COUNT; ++id){
+					if(strcmp(currentTokenText, tokenStrings[id]) == 0){
+						if(id > START_OPCODES && id < END_OPCODES){
+							currentToken.kind = KIND_OPCODE;
+						} 
+					}
+				}
 			}
-			currentStatus = SEARCHING;
-			currentToken.line = currentLine;
-			printf("Current Token at line %lu: %s\n",currentToken.line, currentToken.text);
+			currentToken.text = currentTokenText;
+
+			printf("Current Token at line %lu: %s",currentToken.line + 1, currentToken.text);
+			printf(" - Kind: ");
+			switch (currentToken.kind){
+				case KIND_INVALID: printf("INVALID\n"); break;
+				case KIND_STRING: printf("STRING\n"); break;
+				case KIND_IMMEDIATE: printf("IMMEDIATE\n"); break;
+				case KIND_OPCODE: printf("OPCODE\n"); break;
+				break;
+				default: break;
+			}
+
 			currentTokenCursor = 0;
 			memset(&currentTokenText,'\0', 256);
 			isString = 0;
+			currentStatus = SEARCHING;
 		}	
 
 	}	
-
 
 	return NULL;
 }

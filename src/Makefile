@@ -1,4 +1,4 @@
-.PHONY: all clean
+.PHONY: all clean run
 
 CFLAGS:= -ggdb -std=c11 -Wall -Wextra -pedantic
 CC:= gcc
