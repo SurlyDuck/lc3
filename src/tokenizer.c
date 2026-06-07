@@ -30,12 +30,12 @@ char *tokenStrings[] =  {
 };
 
 token** GetTokens(char *raw, size_t rawSize){
-	
 	long long cursor = -1;
 	token_status currentStatus = SEARCHING;
 	token currentToken = {0};
 	size_t currentLine = 0;
-	int currentTokenCursor    = 0;
+	int currentTokenCursor = 0;
+	int isString = 0;
 	char currentTokenText[TOKEN_MAX_SIZE] = {0};
 	while((rawSize - cursor) > 0){
 		if(currentTokenCursor >= TOKEN_MAX_SIZE){
@@ -55,23 +55,32 @@ token** GetTokens(char *raw, size_t rawSize){
 		else if(currentStatus == IGNORING) currentStatus = SEARCHING;
 
 		if(currentStatus == SEARCHING && (b != ' ' && b != '\t' && b != '\n')){
-			currentTokenText[currentTokenCursor] = b;
+			if(b == '"') isString = 1; 
+			else currentTokenText[currentTokenCursor] = b; 
 			currentToken = (token) {currentLine, currentTokenText, KIND_INVALID};
 			currentStatus = READING;
 			continue;
 		}
 		else if(currentStatus != READING) continue;	
 		
-		if(currentStatus == READING && b != ' ' && b != '\t'){
+		if(currentStatus == READING && ((b != ' ' && b != '\t' && b != '"') || (isString && b != '"'))){
 			currentTokenCursor++;
 			currentToken.text[currentTokenCursor] = b;
-		}else if(currentStatus == READING && (b == ' ' || b == ',' || b == '\t')){
+		}else if(currentStatus == READING && ((b == ' ' || b == ',' || b == '\t') || (isString && b == '"'))){
 			/*TODO: token is finished, find its kind and add to an array */
+			if(isString){
+				/* need to remove double quotes from the left */
+				for(int i = 0; i < currentTokenCursor; ++i){
+					currentTokenText[i] = currentTokenText[i+1];
+				}
+					currentTokenText[currentTokenCursor] = '\0';
+			}
 			currentStatus = SEARCHING;
 			currentToken.line = currentLine;
 			printf("Current Token at line %lu: %s\n",currentToken.line, currentToken.text);
 			currentTokenCursor = 0;
 			memset(&currentTokenText,'\0', 256);
+			isString = 0;
 		}	
 
 	}	
