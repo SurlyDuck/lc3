@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 #define TOKEN_MAX_SIZE 256
 #define MAX_LINES 1000000l

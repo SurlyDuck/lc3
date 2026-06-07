@@ -11,9 +11,9 @@ char *tokenStrings[] =  {
 	"ADD",	/* OP_ADD, */
 	"AND",	/* OP_AND, */
 	"BR",		/* OP_BR, */
-	"BRn",
-	"BRz",
-	"BRp",
+	"BRN",
+	"BRZ",
+	"BRP",
 	"JMP",	/* OP_JMP, */
 	"JSR",	/* OP_JSR, */
 	"JSRR",	/* OP_JSRR, */
@@ -30,14 +30,14 @@ char *tokenStrings[] =  {
 	"TRAP",	/* OP_TRAP, */
 	"",		/* END_OPCODES, */
 	"",     
-	"REG0",	/* REG0,*/
-	"REG1",	/* REG1,*/
-	"REG2",	/* REG2,*/
-	"REG3",	/* REG3,*/
-	"REG4",	/* REG4,*/
-	"REG5",	/* REG5,*/
-	"REG6",	/* REG6,*/
-	"REG7",	/* REG7,*/
+	"R0",	/* REG0,*/
+	"R1",	/* REG1,*/
+	"R2",	/* REG2,*/
+	"R3",	/* REG3,*/
+	"R4",	/* REG4,*/
+	"R5",	/* REG5,*/
+	"R6",	/* REG6,*/
+	"R7",	/* REG7,*/
 	"",      /* END REGISTERS */
 	"",
 	"GETC",	/* GETC,*/
@@ -59,6 +59,12 @@ char *tokenStrings[] =  {
 	"string", 
 	"invalid"
 };
+
+static void Uppercase(char *text, size_t size){
+	for(size_t i = 0; i < size; ++i){
+		if(text[i] > 'Z' && !isdigit(text[i])) text[i] -= 'a' - 'A';
+	}
+}
 
 token** GetTokens(char *raw, size_t rawSize){
 	long long cursor = -1;
@@ -110,22 +116,37 @@ token** GetTokens(char *raw, size_t rawSize){
 				currentToken.kind = KIND_IMMEDIATE;
 				for(int i = 1; i < currentTokenCursor+1; ++i){
 					if(currentTokenText[i] == '-' || currentTokenText[i] == '+') continue;
-					int r = (int)(currentTokenText[i] - '0');
-					if(r > 9 || r < 0){
+					//int r = (int)(currentTokenText[i] - '0');
+					if(!isalnum(currentTokenText[i]) || currentTokenText[i] == '_'){
 						currentToken.kind = KIND_INVALID;
 						break;
 					}
 				}
-			}else if (currentTokenText[0] > '0' && currentTokenText[0] <= '9'){
-				currentToken.kind = KIND_INVALID;
+			}else if (isdigit(currentTokenText[0]) && currentTokenText[0] >= '0' && currentTokenText[0] <= '9'){
+				currentToken.kind = KIND_IMMEDIATE;
 			}else{
+				Uppercase(currentTokenText, currentTokenCursor + 1);
 				for(int id = 0; id < TOKENS_COUNT; ++id){
 					if(strcmp(currentTokenText, tokenStrings[id]) == 0){
 						if(id > START_OPCODES && id < END_OPCODES){
 							currentToken.kind = KIND_OPCODE;
-						} 
+							break;
+						}else if(id > START_REGISTERS && id < END_REGISTERS){
+							currentToken.kind = KIND_REGISTER;
+							break;
+						}else if(id > START_TRAP_ROUTINES && id < END_TRAP_ROUTINES){
+							currentToken.kind = KIND_TRAP;
+							break;
+						}else if(id > START_PSEUDO_OPS && id < END_PSEUDO_OPS){
+							currentToken.kind = KIND_PSEUDO_OP;
+							break;
+						}else{
+							continue;
+						}
 					}
 				}
+				if(currentToken.kind == KIND_INVALID) currentToken.kind = KIND_LABEL;
+
 			}
 			currentToken.text = currentTokenText;
 
@@ -136,6 +157,10 @@ token** GetTokens(char *raw, size_t rawSize){
 				case KIND_STRING: printf("STRING\n"); break;
 				case KIND_IMMEDIATE: printf("IMMEDIATE\n"); break;
 				case KIND_OPCODE: printf("OPCODE\n"); break;
+				case KIND_REGISTER: printf("REGISTER\n"); break;
+				case KIND_TRAP: printf("TRAP\n"); break;
+				case KIND_PSEUDO_OP: printf("PSEUDO-OP\n"); break;
+				case KIND_LABEL: printf("LABEL\n"); break;
 				break;
 				default: break;
 			}
@@ -150,3 +175,5 @@ token** GetTokens(char *raw, size_t rawSize){
 
 	return NULL;
 }
+
+
