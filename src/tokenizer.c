@@ -60,13 +60,15 @@ char *tokenStrings[] =  {
 	"invalid"
 };
 
+static tokens tokensArray = {0};
+
 static void Uppercase(char *text, size_t size){
 	for(size_t i = 0; i < size; ++i){
 		if(text[i] > 'Z' && !isdigit(text[i])) text[i] -= 'a' - 'A';
 	}
 }
 
-token** GetTokens(char *raw, size_t rawSize){
+tokens* GetTokens(char *raw, size_t rawSize){
 	long long cursor = -1;
 	token_status currentStatus = SEARCHING;
 	token currentToken = {0};
@@ -164,16 +166,28 @@ token** GetTokens(char *raw, size_t rawSize){
 				break;
 				default: break;
 			}
+			
+			if(tokensArray.size == 0){
+				tokensArray = (tokens) {
+				.items = (token*) malloc(sizeof(token) * 1),
+				.size   = 1,
+				.capacity = sizeof(tokens),
+				};
+			}else{
+				tokensArray.size += 1;
+				if(tokensArray.capacity < sizeof(token) * tokensArray.size){
+					tokensArray.capacity *= 2;
+					tokensArray.items = (token*) realloc(tokensArray.items, tokensArray.capacity); 				
+				}
+			}
+
+			tokensArray.items[tokensArray.size - 1] = currentToken;
 
 			currentTokenCursor = 0;
 			memset(&currentTokenText,'\0', 256);
 			isString = 0;
 			currentStatus = SEARCHING;
 		}	
-
 	}	
-
-	return NULL;
+	return &tokensArray;
 }
-
-

@@ -4,6 +4,7 @@
 
 char *fileRaw;
 size_t rawSize = 0;
+tokens *allTokens = {0};
 
 int OpenFile(char *filePath);
 
@@ -19,12 +20,13 @@ int main(int argc, char **argv){
 		return 1;
 	}
 	
-	if(GetTokens(fileRaw, rawSize) == NULL){
+	if((allTokens = GetTokens(fileRaw, rawSize)) == NULL){
 		fprintf(stderr, "\nError: Couldn't tokenize file.\n");
 		return 1;
 	}
 	
 	free(fileRaw);
+	free(allTokens->items);
 
 	return 0;
 }

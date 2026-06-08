@@ -1,5 +1,5 @@
-#ifndef _TOKENIZER_
-#define _TOKENIZER_
+#ifndef _TOKENIZER
+#define _TOKENIZER
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -82,8 +82,14 @@ typedef struct{
 	token_kind kind;
 }token;
 
+typedef struct{
+	token *items;
+	size_t size;
+	size_t capacity;
+}tokens;
+
 extern char *tokenStrings[];
 
-extern token** GetTokens(char *raw, size_t rawSize);
+extern tokens* GetTokens(char *raw, size_t rawSize); 
 
-#endif
+#endif  //#TOKENIZER_
