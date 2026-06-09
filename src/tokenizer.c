@@ -96,7 +96,7 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 		if(currentStatus == SEARCHING && (b != ' ' && b != '\t' && b != '\n')){
 			if(b == '"') isString = 1; 
 			else currentTokenText[currentTokenCursor] = b; 
-			currentToken = (token) {currentLine, currentTokenText, KIND_INVALID};
+			currentToken = (token) {currentLine, currentTokenText, currentTokenCursor, KIND_INVALID};
 			currentStatus = READING;
 			continue;
 		}
@@ -147,13 +147,14 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 					}
 				}
 				if(currentToken.kind == KIND_INVALID) currentToken.kind = KIND_LABEL;
-
 			}
+
 			currentToken.text = (char*) malloc(sizeof(char) * currentTokenCursor + 1);
 			for(int i = 0; i <= currentTokenCursor; ++i){
 				currentToken.text[i] = currentTokenText[i];	
 			}
 			currentToken.text[currentTokenCursor + 1] = '\0';
+			currentToken.textSize = currentTokenCursor + 1;
 			if(tokensArray.size == 0){
 				tokensArray = (tokens) {
 				.items = (token*) malloc(sizeof(token) * 1),

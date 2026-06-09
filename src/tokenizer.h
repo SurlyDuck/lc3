@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
 
 #define TOKEN_MAX_SIZE 256
 #define MAX_LINES 1000000l
@@ -79,6 +80,7 @@ typedef enum{
 typedef struct{
 	size_t line;
 	char *text;
+	uint8_t textSize;
 	token_kind kind;
 }token;
 

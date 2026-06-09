@@ -6,18 +6,20 @@
 #define ERROR_NO_ORIG fprintf(stderr, "\n<parser>Error: Entry point <.ORIG xxxx> not found.\n") 
 #define ERROR_NO_END fprintf(stderr, "\n<parser>Error: End program <.END> not found.\n") 
 #define ERROR_IMMEDIATE_ADDRESS(line, val) (fprintf(stderr, \
- "\n<parser>Error: Invalid Address at line %lu: <%s>\n",line,val)) \
+ "\n<parser>Error: Invalid entrypoint address at line %lu: <%s>\n",line,val)) \
 
 #define ERROR_IMMEDIATE_ADDRESS_FORMAT(line, val) (fprintf(stderr, \
  "\n<parser>Error: Unknown address format <# - Dec | x - Hex | b - Bin> at line %lu: <%s>\n",line,val)) \
 
+
+#define ERROR_EXPLODED_MEMORY(line, val) (fprintf(stderr, \
+ "\n<parser>Error: Entrypoint address too high at line %lu: <%s>\n",line,val)) \
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <math.h>
 #include "tokenizer.h"
-
 
 tokens *allTokens = NULL;
 size_t rawSize = 0;
@@ -78,6 +80,22 @@ int main(int argc, char **argv){
 	return 0;
 }
 
+#define STR_TO_INT(str, size, res, base) do { \
+	for(uint8_t i = (size - 1); i > 0; --i){ \
+ 		if(str[i] == '#' || str[i] == 'x' || str[i] == 'b') {  \
+			continue; \
+		} \
+		if(str[i] == '-') { \
+			*res *= -1; \
+			continue; \
+		} \
+		char digit = str[i]; \
+		if(digit >= 'A' && digit <= 'F') digit = (digit - 'A') + 10;\
+		else digit = digit - '0';\
+		*res += pow(base,(size-1)-i) * digit; \
+	} \
+} while(0) 
+
 bool ParseTokens(){
 	if(strcmp(allTokens->items[0].text,tokenStrings[ORIG])){
 		ERROR_NO_ORIG;
@@ -90,16 +108,21 @@ bool ParseTokens(){
 		return false;}	
 
 	size_t entryPoint = 0;
+	uint8_t tokenSize = allTokens->items[1].textSize;
 	switch(allTokens->items[1].text[0]){
-		case '#': entryPoint = StrToInt(allTokens->items[1].text, 10); break;
-		case 'x': entryPoint = StrToInt(allTokens->items[1].text, 16); break;
-		case 'b': entryPoint = StrToInt(allTokens->items[1].text, 2); break;
-		default: ERROR_IMMEDIATE_ADDRESS_FORMAT(allTokens->items[1].line+1, allTokens->items[1].text); return false;
-	}
-	printf("%lu", entryPoint);
+		case '#': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 10); break;
+		case 'x': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 16); break;
+		case 'b': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 2); break;
+		default: ERROR_IMMEDIATE_ADDRESS_FORMAT(allTokens->items[1].line+1, allTokens->items[1].text); return false;}
+	printf("%lu\n",entryPoint);
+	if(entryPoint >= (1<<16)){
+		ERROR_EXPLODED_MEMORY(allTokens->items[1].line+1, allTokens->items[1].text);
+		return 1;}
+
 	return true;
 }
 
+/*
 size_t StrToInt(char *str, int base){
 	size_t num = 0;
 	int size = 0;
@@ -109,9 +132,8 @@ size_t StrToInt(char *str, int base){
 		if(str[i] == '#' || str[i] == 'x' || str[i] == 'b') continue;
 		num += pow(base,size-i) * (size_t)(str[i] - '0');
 	}
-
 	return num;
-}
+}*/
 
 
 void ReadFile(FILE *file){
