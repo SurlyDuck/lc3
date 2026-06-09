@@ -114,7 +114,7 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 				}
 				currentTokenText[currentTokenCursor] = '\0';
 				currentToken.kind = KIND_STRING;
-			}else if(currentTokenText[0] == '#' || currentTokenText[0] == 'x' || currentTokenText[0] == 'X'){
+			}else if(currentTokenText[0] == '#' || currentTokenText[0] == 'x' || currentTokenText[0] == 'X' || currentTokenText[0] == 'b' || currentTokenText[0] == 'B'){
 				currentToken.kind = KIND_IMMEDIATE;
 				for(int i = 1; i < currentTokenCursor+1; ++i){
 					if(currentTokenText[i] == '-' || currentTokenText[i] == '+') continue;
@@ -154,22 +154,6 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 				currentToken.text[i] = currentTokenText[i];	
 			}
 			currentToken.text[currentTokenCursor + 1] = '\0';
-			/*
-			printf("Current Token at line %lu: %s",currentToken.line + 1, currentToken.text);
-			printf(" - Kind: ");
-			switch (currentToken.kind){
-				case KIND_INVALID: printf("INVALID\n"); break;
-				case KIND_STRING: printf("STRING\n"); break;
-				case KIND_IMMEDIATE: printf("IMMEDIATE\n"); break;
-				case KIND_OPCODE: printf("OPCODE\n"); break;
-				case KIND_REGISTER: printf("REGISTER\n"); break;
-				case KIND_TRAP: printf("TRAP\n"); break;
-				case KIND_PSEUDO_OP: printf("PSEUDO-OP\n"); break;
-				case KIND_LABEL: printf("LABEL\n"); break;
-				break;
-				default: break;
-			}
-			*/
 			if(tokensArray.size == 0){
 				tokensArray = (tokens) {
 				.items = (token*) malloc(sizeof(token) * 1),
@@ -194,7 +178,6 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 	}	
 	return &tokensArray;
 }
-
 
 void ExitTokenizer(void){
 	for(size_t i = 0; i < tokensArray.size; ++i){
