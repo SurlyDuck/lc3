@@ -68,7 +68,7 @@ static void Uppercase(char *text, size_t size){
 	}
 }
 
-tokens* GetTokens(char *raw, size_t rawSize){
+tokens* InitTokenizer(char *raw, size_t rawSize){
 	long long cursor = -1;
 	token_status currentStatus = SEARCHING;
 	token currentToken = {0};
@@ -118,7 +118,6 @@ tokens* GetTokens(char *raw, size_t rawSize){
 				currentToken.kind = KIND_IMMEDIATE;
 				for(int i = 1; i < currentTokenCursor+1; ++i){
 					if(currentTokenText[i] == '-' || currentTokenText[i] == '+') continue;
-					//int r = (int)(currentTokenText[i] - '0');
 					if(!isalnum(currentTokenText[i]) || currentTokenText[i] == '_'){
 						currentToken.kind = KIND_INVALID;
 						break;
@@ -150,8 +149,12 @@ tokens* GetTokens(char *raw, size_t rawSize){
 				if(currentToken.kind == KIND_INVALID) currentToken.kind = KIND_LABEL;
 
 			}
-			currentToken.text = currentTokenText;
-
+			currentToken.text = (char*) malloc(sizeof(char) * currentTokenCursor + 1);
+			for(int i = 0; i <= currentTokenCursor; ++i){
+				currentToken.text[i] = currentTokenText[i];	
+			}
+			currentToken.text[currentTokenCursor + 1] = '\0';
+			/*
 			printf("Current Token at line %lu: %s",currentToken.line + 1, currentToken.text);
 			printf(" - Kind: ");
 			switch (currentToken.kind){
@@ -166,7 +169,7 @@ tokens* GetTokens(char *raw, size_t rawSize){
 				break;
 				default: break;
 			}
-			
+			*/
 			if(tokensArray.size == 0){
 				tokensArray = (tokens) {
 				.items = (token*) malloc(sizeof(token) * 1),
@@ -191,3 +194,13 @@ tokens* GetTokens(char *raw, size_t rawSize){
 	}	
 	return &tokensArray;
 }
+
+
+void ExitTokenizer(void){
+	for(size_t i = 0; i < tokensArray.size; ++i){
+		free(tokensArray.items[i].text);
+	}
+	free(tokensArray.items);
+
+}
+

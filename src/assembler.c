@@ -4,7 +4,7 @@
 
 char *fileRaw;
 size_t rawSize = 0;
-tokens *allTokens = {0};
+tokens *allTokens = NULL;
 
 int OpenFile(char *filePath);
 
@@ -20,13 +20,29 @@ int main(int argc, char **argv){
 		return 1;
 	}
 	
-	if((allTokens = GetTokens(fileRaw, rawSize)) == NULL){
+	if((allTokens = InitTokenizer(fileRaw, rawSize)) == NULL){
 		fprintf(stderr, "\nError: Couldn't tokenize file.\n");
 		return 1;
 	}
 	
+	for(size_t i = 0; i < allTokens->size; ++i){
+		printf("Current Token at line %lu: %s",allTokens->items[i].line + 1, allTokens->items[i].text);
+		printf(" - Kind: ");
+		switch (allTokens->items[i].kind){
+			case KIND_INVALID: printf("INVALID\n"); break;
+			case KIND_STRING: printf("STRING\n"); break;
+			case KIND_IMMEDIATE: printf("IMMEDIATE\n"); break;
+			case KIND_OPCODE: printf("OPCODE\n"); break;
+			case KIND_REGISTER: printf("REGISTER\n"); break;
+			case KIND_TRAP: printf("TRAP\n"); break;
+			case KIND_PSEUDO_OP: printf("PSEUDO-OP\n"); break;
+			case KIND_LABEL: printf("LABEL\n"); break;
+			break;
+			default: break;
+		}
+	}
+	ExitTokenizer();
 	free(fileRaw);
-	free(allTokens->items);
 
 	return 0;
 }

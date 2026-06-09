@@ -90,6 +90,7 @@ typedef struct{
 
 extern char *tokenStrings[];
 
-extern tokens* GetTokens(char *raw, size_t rawSize); 
+extern tokens* InitTokenizer(char *raw, size_t rawSize); 
+extern void ExitTokenizer(void);
 
 #endif  //#TOKENIZER_
