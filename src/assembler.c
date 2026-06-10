@@ -5,15 +5,18 @@
 #define ERROR_PARSING fprintf(stderr, "\n<parser>Error: Couldn't parse.\n") 
 #define ERROR_NO_ORIG fprintf(stderr, "\n<parser>Error: Entry point <.ORIG xxxx> not found.\n") 
 #define ERROR_NO_END fprintf(stderr, "\n<parser>Error: End program <.END> not found.\n") 
+#define ERROR_FILLING_SIMBOL_TABLE fprintf(stderr, "\n<parser>Error: Failure during creation of symbol table.\n") 
 #define ERROR_IMMEDIATE_ADDRESS(line, val) (fprintf(stderr, \
- "\n<parser>Error: Invalid entrypoint address at line %lu: <%s>\n",line,val)) \
-
+ "\n<parser>Error: Invalid entrypoint address at line %lu: <%s>\n",line,val)) 
 #define ERROR_IMMEDIATE_ADDRESS_FORMAT(line, val) (fprintf(stderr, \
- "\n<parser>Error: Unknown address format <# - Dec | x - Hex | b - Bin> at line %lu: <%s>\n",line,val)) \
-
-
+ "\n<parser>Error: Unknown address format <# - Dec | x - Hex | b - Bin> at line %lu: <%s>\n",line,val)) 
 #define ERROR_EXPLODED_MEMORY(line, val) (fprintf(stderr, \
- "\n<parser>Error: Entrypoint address too high at line %lu: <%s>\n",line,val)) \
+ "\n<parser>Error: Entrypoint address too high at line %lu: <%s>\n",line,val)) 
+#define ERROR_EXPLODED_MEMORY(line, val) (fprintf(stderr, \
+ "\n<parser>Error: Entrypoint address too high at line %lu: <%s>\n",line,val)) 
+#define ERROR_SYMBOL_NOT_FOUND(line, val) (fprintf(stderr, \
+ "\n<parser>Error: Label not found at line %lu: <%s>\n",line,val)) 
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,13 +24,26 @@
 #include <math.h>
 #include "tokenizer.h"
 
+typedef struct {
+	char *symbol;
+	uint16_t address;
+}symbol;
+
+typedef struct{
+	symbol *items;
+	size_t size;
+	size_t capacity;
+}s_table;
+
 tokens *allTokens = NULL;
+s_table symbolTable = {0};
 size_t rawSize = 0;
 char *fileRaw;
 uint16_t memory[1<<16];
 
 int OpenFile(char *filePath);
 bool ParseTokens(void);
+bool FillSymbolTable(uint16_t entryPoint);
 size_t StrToInt(char *str, int base);
 
 int main(int argc, char **argv){
@@ -73,9 +89,9 @@ int main(int argc, char **argv){
 		return 1;
 	}
 
-	
 	ExitTokenizer();
 	free(fileRaw);
+	if(symbolTable.size > 0) free(symbolTable.items); 
 
 	return 0;
 }
@@ -96,6 +112,7 @@ int main(int argc, char **argv){
 	} \
 } while(0) 
 
+
 bool ParseTokens(){
 	if(strcmp(allTokens->items[0].text,tokenStrings[ORIG])){
 		ERROR_NO_ORIG;
@@ -114,27 +131,72 @@ bool ParseTokens(){
 		case 'x': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 16); break;
 		case 'b': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 2); break;
 		default: ERROR_IMMEDIATE_ADDRESS_FORMAT(allTokens->items[1].line+1, allTokens->items[1].text); return false;}
-	printf("%lu\n",entryPoint);
+	//printf("%lu\n",entryPoint);
 	if(entryPoint >= (1<<16)){
 		ERROR_EXPLODED_MEMORY(allTokens->items[1].line+1, allTokens->items[1].text);
 		return 1;}
+	
+	uint16_t programCounter = (uint16_t) entryPoint;
+	memory[0] = programCounter;
+		
+	if(!FillSymbolTable(programCounter)) {
+		ERROR_FILLING_SIMBOL_TABLE;
+		return false;
+	}
 
 	return true;
 }
 
-/*
-size_t StrToInt(char *str, int base){
-	size_t num = 0;
-	int size = 0;
-	while(str[size] != '\0') size++;
-	size--;
-	for(int i = size; i >= 1; --i){
-		if(str[i] == '#' || str[i] == 'x' || str[i] == 'b') continue;
-		num += pow(base,size-i) * (size_t)(str[i] - '0');
-	}
-	return num;
-}*/
+#define SYMBOL_APPEND(symbolName, addr) \
+{\
+	if(symbolTable.size == 0){\
+		symbolTable.items = (symbol*) malloc(sizeof(symbol)); \
+		symbolTable.size = 1;\
+		symbolTable.capacity = sizeof(symbol);\
+	}else if(symbolTable.capacity < (symbolTable.size+1) * sizeof(symbol)){\
+		symbolTable.capacity *= 2; \
+		symbolTable.items = (symbol*) realloc(symbolTable.items, symbolTable.capacity);\
+	}\
+	symbolTable.items[symbolTable.size-1].symbol  = symbolName;\
+	symbolTable.items[symbolTable.size-1].address = addr;\
+	symbolTable.size++;\
+}\
 
+bool FillSymbolTable(uint16_t entryPoint){
+	uint16_t count = entryPoint;
+	size_t currentLine = allTokens->items[0].line;
+	for (size_t i = 0; i < allTokens->size -1; ++i){
+		size_t tokenLine = allTokens->items[i].line;
+		token_kind tokenKind = allTokens->items[i].kind;
+		char *tokenSymbol = allTokens->items[i].text;
+
+		if(tokenLine != currentLine){
+			count++;
+			currentLine = tokenLine;
+			if(tokenKind == KIND_LABEL && allTokens->items[i+1].line == tokenLine){
+				SYMBOL_APPEND(tokenSymbol, count);
+			}else if(tokenKind == KIND_LABEL){
+				SYMBOL_APPEND(tokenSymbol, count);
+				count--;			
+			}
+		}	
+	}
+	
+	for (size_t t = 0; t < allTokens->size -1; ++t){
+		if(allTokens->items[t].kind == KIND_LABEL){
+			bool found = false;
+			for(size_t s = 0; s < symbolTable.size -1; ++s){
+				if(strcmp(symbolTable.items[s].symbol, allTokens->items[t].text) == 0){found = true; break;}
+			}
+			if(!found){
+				ERROR_SYMBOL_NOT_FOUND(allTokens->items[t].line + 1,allTokens->items[t].text);
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
 
 void ReadFile(FILE *file){
 	fseek(file,0,SEEK_END);

@@ -146,7 +146,13 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 						}
 					}
 				}
-				if(currentToken.kind == KIND_INVALID) currentToken.kind = KIND_LABEL;
+				if(currentToken.kind == KIND_INVALID) {
+					currentToken.kind = KIND_LABEL;
+					for(int i = 0; i < currentTokenCursor + 1; ++i){
+						/* colon is ignored on labels */
+						if(currentTokenText[i] == ':'){currentTokenText[i] = '\0'; break; }
+					}
+				}
 			}
 
 			currentToken.text = (char*) malloc(sizeof(char) * currentTokenCursor + 1);
