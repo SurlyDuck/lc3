@@ -78,7 +78,7 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 	char currentTokenText[TOKEN_MAX_SIZE] = {0};
 	while((rawSize - cursor) > 0){
 		if(currentTokenCursor >= TOKEN_MAX_SIZE){
-			fprintf(stderr, "[ERROR]: at line %lu, token '%s' is too big", currentLine,currentTokenText);
+			fprintf(stderr, "<Error> at line %lu, token '%s' is too big\n", currentLine,currentTokenText);
 			return NULL;
 		}
 	

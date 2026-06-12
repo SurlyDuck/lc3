@@ -1,27 +1,5 @@
-#define ERROR_USAGE fprintf(stderr, "\nUSAGE: assembler program.asm\n\n")	
-#define ERROR_FILE fprintf(stderr, "\nError: Couldn't open file.\n")	
-#define ERROR_TOKENIZER fprintf(stderr, "\n<lexer>Error: Couldn't tokenize file.\n")
-#define ERROR_NO_TOKENS fprintf(stderr, "\n<lexer>Error: No tokens to parse.\n") 
-#define ERROR_PARSING fprintf(stderr, "\n<parser>Error: Couldn't parse.\n") 
-#define ERROR_NO_ORIG fprintf(stderr, "\n<parser>Error: Entry point <.ORIG xxxx> not found.\n") 
-#define ERROR_NO_END fprintf(stderr, "\n<parser>Error: End program <.END> not found.\n") 
-#define ERROR_FILLING_SIMBOL_TABLE fprintf(stderr, "\n<parser>Error: Failure during creation of symbol table.\n") 
-#define ERROR_IMMEDIATE_ADDRESS(line, val) (fprintf(stderr, \
- "\n<parser>Error: Invalid entrypoint address at line %lu: <%s>\n",line,val)) 
-#define ERROR_IMMEDIATE_ADDRESS_FORMAT(line, val) (fprintf(stderr, \
- "\n<parser>Error: Unknown address format <# - Dec | x - Hex | b - Bin> at line %lu: <%s>\n",line,val)) 
-#define ERROR_EXPLODED_MEMORY(line, val) (fprintf(stderr, \
- "\n<parser>Error: Entrypoint address too high at line %lu: <%s>\n",line,val)) 
-#define ERROR_EXPLODED_MEMORY(line, val) (fprintf(stderr, \
- "\n<parser>Error: Entrypoint address too high at line %lu: <%s>\n",line,val)) 
-#define ERROR_SYMBOL_NOT_FOUND(line, val) (fprintf(stderr, \
- "\n<parser>Error: Label not found at line %lu: <%s>\n",line,val)) 
-#define ERROR_STRING_UNDEFINED(line, val) (fprintf(stderr, \
- "\n<parser>Error: String undefined at line %lu: <%s>\n",line,val)) 
-#define ERROR_BLKW_UNDEFINED(line, val) (fprintf(stderr, \
- "\n<parser>Error: Value for .BLKW undefined  at line %lu: <%s>\n",line,val)) 
-#define ERROR_FILL_UNDEFINED(line, val) (fprintf(stderr, \
- "\n<parser>Error: Value for .FILL undefined  at line %lu: <%s>\n",line,val)) 
+#define ERROR_MESSAGE(msg) fprintf(stderr, "<Error> %s\n", msg)	
+#define ERROR_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Error> %s at line %lu: <%s>\n",msg,line,val)	
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,17 +31,17 @@ size_t StrToInt(char *str, int base);
 
 int main(int argc, char **argv){
 	if(argc < 2){
-		ERROR_USAGE;
+		ERROR_MESSAGE("\nUsage: assembler program.asm");
 		return 1;
 	}
 	
 	if(!OpenFile(argv[1])){
-		ERROR_FILE;
+		ERROR_MESSAGE("Couldn't tokenize file.");
 		return 1;
 	}
 	
 	if((allTokens = InitTokenizer(fileRaw, rawSize)) == NULL){
-		ERROR_TOKENIZER;
+		ERROR_MESSAGE("Error: Couldn't tokenize file.");
 		return 1;
 	}
 	
@@ -85,12 +63,12 @@ int main(int argc, char **argv){
 	}
 
 	if(allTokens->size == 0){
-		ERROR_NO_TOKENS;
+		ERROR_MESSAGE("No tokens to parse.");
 		return 1;
 	}
 
 	if(!ParseTokens()){
-		ERROR_PARSING;
+		ERROR_MESSAGE("Couldn't parse.");
 		return 1;
 	}
 
@@ -130,13 +108,13 @@ int main(int argc, char **argv){
 
 bool ParseTokens(){
 	if(strcmp(allTokens->items[0].text,tokenStrings[ORIG])){
-		ERROR_NO_ORIG;
+		ERROR_MESSAGE("Entry point <.ORIG xxxx> not found.");
 		return false;}
 	if(strcmp(allTokens->items[allTokens->size-1].text,tokenStrings[END])){
-		ERROR_NO_END;
+		ERROR_MESSAGE("End program <.END> not found.");
 		return false;}
 	if(allTokens->items[1].kind != KIND_IMMEDIATE){
-		ERROR_IMMEDIATE_ADDRESS(allTokens->items[1].line+1, allTokens->items[1].text);
+		ERROR_MESSAGE_LONG("Invalid entrypoint address", allTokens->items[1].line+1, allTokens->items[1].text);
 		return false;}	
 
 	size_t entryPoint = 0;
@@ -145,17 +123,17 @@ bool ParseTokens(){
 		case '#': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 10); break;
 		case 'x': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 16); break;
 		case 'b': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 2); break;
-		default: ERROR_IMMEDIATE_ADDRESS_FORMAT(allTokens->items[1].line+1, allTokens->items[1].text); return false;}
+		default: ERROR_MESSAGE_LONG("Unknown address format <# - Dec | x - Hex | b - Bin>",allTokens->items[1].line+1, allTokens->items[1].text); return false;}
 	//printf("%lu\n",entryPoint);
 	if(entryPoint >= (1<<16)){
-		ERROR_EXPLODED_MEMORY(allTokens->items[1].line+1, allTokens->items[1].text);
-		return 1;}
+		ERROR_MESSAGE_LONG("Entrypoint address too high",allTokens->items[1].line+1, allTokens->items[1].text);
+		return false;}
 	
 	uint16_t programCounter = (uint16_t) entryPoint;
 	memory[0] = programCounter;
 		
 	if(!FillSymbolTable(programCounter)) {
-		ERROR_FILLING_SIMBOL_TABLE;
+		ERROR_MESSAGE("Failure during creation of symbol table.");
 		return false;
 	}
 
@@ -189,10 +167,10 @@ bool FillSymbolTable(uint16_t entryPoint){
 		
 		if(strcmp(tokenSymbol,tokenStrings[STRINGZ]) == 0){
 			if(isEnding){
-				ERROR_STRING_UNDEFINED(allTokens->items[i].line + 1,allTokens->items[i].text);
+				ERROR_MESSAGE_LONG("String undefined",allTokens->items[i].line + 1,allTokens->items[i].text);
 				return false;
 			}else if(allTokens->items[i+1].kind != KIND_STRING){
-				ERROR_STRING_UNDEFINED(allTokens->items[i + 1].line + 1,allTokens->items[i + 1].text);
+				ERROR_MESSAGE_LONG("String undefined",allTokens->items[i+1].line + 1,allTokens->items[i + 1].text);
 				return false;
 			}
 			if(isLabeling) {count--; isLabeling = false;}
@@ -200,10 +178,10 @@ bool FillSymbolTable(uint16_t entryPoint){
 			count += allTokens->items[i+1].textSize-1;
 		}else if(strcmp(tokenSymbol,tokenStrings[BLKW]) == 0){
 			if(isEnding){
-				ERROR_BLKW_UNDEFINED(allTokens->items[i].line + 1,allTokens->items[i].text);
+				ERROR_MESSAGE_LONG("Value for .BLKW undefined",allTokens->items[i].line + 1,allTokens->items[i].text);
 				return false;
 			}else if(allTokens->items[i+1].kind != KIND_IMMEDIATE){
-				ERROR_BLKW_UNDEFINED(allTokens->items[i + 1].line + 1,allTokens->items[i + 1].text);
+				ERROR_MESSAGE_LONG("Value for .BLKW undefined",allTokens->items[i+1].line + 1,allTokens->items[i+1].text);
 				return false;
 			}
 			if(isLabeling) {count--; isLabeling = false;}
@@ -213,10 +191,10 @@ bool FillSymbolTable(uint16_t entryPoint){
 			count += words;
 		}else if(strcmp(tokenSymbol,tokenStrings[FILL]) == 0){
 			if(isEnding){
-				ERROR_FILL_UNDEFINED(allTokens->items[i].line + 1,allTokens->items[i].text);
+				ERROR_MESSAGE_LONG("Value for .FILL undefined",allTokens->items[i].line + 1,allTokens->items[i].text);
 				return false;
 			}else if(allTokens->items[i+1].kind != KIND_IMMEDIATE){
-				ERROR_FILL_UNDEFINED(allTokens->items[i + 1].line + 1,allTokens->items[i + 1].text);
+				ERROR_MESSAGE_LONG("Value for .FILL undefined",allTokens->items[i + 1].line + 1,allTokens->items[i + 1].text);
 				return false;
 			}
 			if(isLabeling) {count--; isLabeling = false;}
@@ -242,7 +220,7 @@ bool FillSymbolTable(uint16_t entryPoint){
 				if(strcmp(symbolTable.items[s].symbol, allTokens->items[t].text) == 0){found = true; break;}
 			}
 			if(!found){
-				ERROR_SYMBOL_NOT_FOUND(allTokens->items[t].line + 1,allTokens->items[t].text);
+				ERROR_MESSAGE_LONG("Label not found",allTokens->items[t].line + 1,allTokens->items[t].text);
 				return false;
 			}
 		}
@@ -263,6 +241,7 @@ void ReadFile(FILE *file){
 int OpenFile(char *filePath){
 	FILE *file = NULL;
 	if(!(file = fopen(filePath, "r"))){
+		ERROR_MESSAGE("Coundn't open file.");
 		return 0;
 	}
 	
