@@ -18,6 +18,8 @@
  "\n<parser>Error: Label not found at line %lu: <%s>\n",line,val)) 
 #define ERROR_STRING_UNDEFINED(line, val) (fprintf(stderr, \
  "\n<parser>Error: String undefined at line %lu: <%s>\n",line,val)) 
+#define ERROR_BLKW_UNDEFINED(line, val) (fprintf(stderr, \
+ "\n<parser>Error: Value for .BLKW undefined  at line %lu: <%s>\n",line,val)) 
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -98,21 +100,31 @@ int main(int argc, char **argv){
 }
 
 #define STR_TO_INT(str, size, res, base) do { \
-	for(uint8_t i = (size - 1); i > 0; --i){ \
- 		if(str[i] == '#' || str[i] == 'x' || str[i] == 'b') {  \
+	for(uint8_t numPOS = (size - 1); numPOS > 0; --numPOS){ \
+ 		if(str[numPOS] == '#' || str[numPOS] == 'x' || str[numPOS] == 'b') {  \
 			continue; \
 		} \
-		if(str[i] == '-') { \
+		if(str[numPOS] == '-') { \
 			*res *= -1; \
 			continue; \
 		} \
-		char digit = str[i]; \
+		char digit = str[numPOS]; \
 		if(digit >= 'A' && digit <= 'F') digit = (digit - 'A') + 10;\
 		else digit = digit - '0';\
-		*res += pow(base,(size-1)-i) * digit; \
+		*res += pow(base,(size-1)-numPOS) * digit; \
 	} \
 } while(0) 
 
+#define STR_TO_INT_NOPREFIX(str, size, res, base) do { \
+	for(uint8_t numPOS = size; numPOS > 0; --numPOS){ \
+		if(str[numPOS] == '-') { \
+			*res *= -1; \
+			continue; \
+		} \
+		char digit = str[numPOS-1] - '0'; \
+		*res += pow(base,size-numPOS) * digit; \
+	} \
+} while(0) 
 
 bool ParseTokens(){
 	if(strcmp(allTokens->items[0].text,tokenStrings[ORIG])){
@@ -182,10 +194,23 @@ bool FillSymbolTable(uint16_t entryPoint){
 				return false;
 			}
 			if(isLabeling) {count--; isLabeling = false;}
+			else{ count++; currentLine = tokenLine;}
 			count += allTokens->items[i+1].textSize-1;
-			
-		}
-		else if(tokenLine != currentLine && !isLabeling){
+		}else if(strcmp(tokenSymbol,tokenStrings[BLKW]) == 0){
+			if(isEnding){
+				ERROR_BLKW_UNDEFINED(allTokens->items[i].line + 1,allTokens->items[i].text);
+				return false;
+			}else if(allTokens->items[i+1].kind != KIND_IMMEDIATE){
+				ERROR_BLKW_UNDEFINED(allTokens->items[i + 1].line + 1,allTokens->items[i + 1].text);
+				return false;
+			}
+			if(isLabeling) {count--; isLabeling = false;}
+			else{ count++; currentLine = tokenLine;}
+			int words = 0;	
+			STR_TO_INT_NOPREFIX(allTokens->items[i + 1].text, allTokens->items[i+1].textSize, &words, 10); 
+			count += words;
+			printf("%d",words);
+		}else if(tokenLine != currentLine && !isLabeling){
 			count++;
 			currentLine = tokenLine;
 			if(tokenKind == KIND_LABEL){

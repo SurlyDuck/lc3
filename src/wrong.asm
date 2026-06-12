@@ -7,8 +7,9 @@ TEST2:
 	ADD R1 R2 R2
 PUTs
 HALT                               
-JMP TEST2                           
-HELLO_STR: .STRINGZ "abc"
+JMP TEST2
+PLACE .BLKW 2           
+HELLO_STR: .STRINGZ "Hi"
 TEST_STR: 
-	.STRINGZ "abc" 
+	.STRINGZ "aaa"
 .END          
