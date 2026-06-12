@@ -20,6 +20,8 @@
  "\n<parser>Error: String undefined at line %lu: <%s>\n",line,val)) 
 #define ERROR_BLKW_UNDEFINED(line, val) (fprintf(stderr, \
  "\n<parser>Error: Value for .BLKW undefined  at line %lu: <%s>\n",line,val)) 
+#define ERROR_FILL_UNDEFINED(line, val) (fprintf(stderr, \
+ "\n<parser>Error: Value for .FILL undefined  at line %lu: <%s>\n",line,val)) 
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -194,7 +196,7 @@ bool FillSymbolTable(uint16_t entryPoint){
 				return false;
 			}
 			if(isLabeling) {count--; isLabeling = false;}
-			else{ count++; currentLine = tokenLine;}
+			else{ currentLine = tokenLine;}
 			count += allTokens->items[i+1].textSize-1;
 		}else if(strcmp(tokenSymbol,tokenStrings[BLKW]) == 0){
 			if(isEnding){
@@ -205,11 +207,21 @@ bool FillSymbolTable(uint16_t entryPoint){
 				return false;
 			}
 			if(isLabeling) {count--; isLabeling = false;}
-			else{ count++; currentLine = tokenLine;}
+			else{ currentLine = tokenLine;}
 			int words = 0;	
 			STR_TO_INT_NOPREFIX(allTokens->items[i + 1].text, allTokens->items[i+1].textSize, &words, 10); 
 			count += words;
-			printf("%d",words);
+		}else if(strcmp(tokenSymbol,tokenStrings[FILL]) == 0){
+			if(isEnding){
+				ERROR_FILL_UNDEFINED(allTokens->items[i].line + 1,allTokens->items[i].text);
+				return false;
+			}else if(allTokens->items[i+1].kind != KIND_IMMEDIATE){
+				ERROR_FILL_UNDEFINED(allTokens->items[i + 1].line + 1,allTokens->items[i + 1].text);
+				return false;
+			}
+			if(isLabeling) {count--; isLabeling = false;}
+			else{ currentLine = tokenLine;}
+			count++;
 		}else if(tokenLine != currentLine && !isLabeling){
 			count++;
 			currentLine = tokenLine;

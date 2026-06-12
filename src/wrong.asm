@@ -8,7 +8,9 @@ TEST2:
 PUTs
 HALT                               
 JMP TEST2
-PLACE .BLKW 2           
+.STRINGZ "TEST"
+PLACE .BLKW 2
+PLACE2 .FILL xFFFF           
 HELLO_STR: .STRINGZ "Hi"
 TEST_STR: 
 	.STRINGZ "aaa"
