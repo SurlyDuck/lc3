@@ -24,6 +24,60 @@ size_t rawSize = 0;
 char *fileRaw;
 uint16_t memory[1<<16];
 
+uint8_t tokenCode[] =  {
+	0x00,		
+	0x01,		/* OP_ADD, */
+	0x05,		/* OP_AND, */
+	0x00,		/* OP_BR, */
+	0x00,
+	0x00,
+	0x00,
+	0x0C,		/* OP_JMP, */
+	0x04,		/* OP_JSR, */
+	0x04,		/* OP_JSRR, */
+	0x02,		/* OP_LD, */
+	0x0A,		/* OP_LDI, */
+	0x06,		/* OP_LDR, */
+	0x0E,		/* OP_LEA, */
+	0x09,		/* OP_NOT, */
+	0x0C,		/* OP_RET, */
+	0x08,		/* OP_RTI, */
+	0x03,		/* OP_ST, */
+	0x0B,		/* OP_STI, */
+	0x07,		/* OP_STR, */
+	0x0F,	/* OP_TRAP, */
+	0x00,		/* END_OPCODES, */
+	0x00,     
+	0x00,	/* REG0,*/
+	0x01,	/* REG1,*/
+	0x02,	/* REG2,*/
+	0x03,	/* REG3,*/
+	0x04,	/* REG4,*/
+	0x05,	/* REG5,*/
+	0x06,	/* REG6,*/
+	0x07,	/* REG7,*/
+	0x00, /* END REGISTERS */
+	0x00,
+	0x20,		/* GETC,*/
+	0x21,		/* OUT,*/
+	0x22,		/* PUTS,*/
+	0x23,		/* IN,*/
+	0x24,		/* PUTSP,*/
+	0x25,		/* HALT,*/
+	0x00,		/* END_TRAP_ROUTINES, */
+	0x00, 
+	0xFF,        /* ORIG,*/
+	0xFF,        /* END,*/
+	0xFF,        /* BLKW,*/
+	0xFF,        /* FILL,*/
+	0xFF,        /* STRINGZ,*/
+	0x00,        /* END PSEUDO OPCODES */
+	0x00,
+	0x00,      	 /* IMMEDIATE */
+	0x00, 
+	0x00
+};
+
 int OpenFile(char *filePath);
 bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
