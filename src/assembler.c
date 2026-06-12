@@ -16,7 +16,8 @@
  "\n<parser>Error: Entrypoint address too high at line %lu: <%s>\n",line,val)) 
 #define ERROR_SYMBOL_NOT_FOUND(line, val) (fprintf(stderr, \
  "\n<parser>Error: Label not found at line %lu: <%s>\n",line,val)) 
-
+#define ERROR_STRING_UNDEFINED(line, val) (fprintf(stderr, \
+ "\n<parser>Error: String undefined at line %lu: <%s>\n",line,val)) 
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -151,41 +152,56 @@ bool ParseTokens(){
 {\
 	if(symbolTable.size == 0){\
 		symbolTable.items = (symbol*) malloc(sizeof(symbol)); \
-		symbolTable.size = 1;\
 		symbolTable.capacity = sizeof(symbol);\
 	}else if(symbolTable.capacity < (symbolTable.size+1) * sizeof(symbol)){\
 		symbolTable.capacity *= 2; \
 		symbolTable.items = (symbol*) realloc(symbolTable.items, symbolTable.capacity);\
 	}\
+	symbolTable.size++;\
 	symbolTable.items[symbolTable.size-1].symbol  = symbolName;\
 	symbolTable.items[symbolTable.size-1].address = addr;\
-	symbolTable.size++;\
 }\
 
 bool FillSymbolTable(uint16_t entryPoint){
 	uint16_t count = entryPoint;
 	size_t currentLine = allTokens->items[0].line;
+	bool isLabeling = false;
 	for (size_t i = 0; i < allTokens->size -1; ++i){
+		if(allTokens->items[i].kind == KIND_STRING) continue;
+		bool isEnding = (allTokens->size < i + 1);
 		size_t tokenLine = allTokens->items[i].line;
 		token_kind tokenKind = allTokens->items[i].kind;
 		char *tokenSymbol = allTokens->items[i].text;
-
-		if(tokenLine != currentLine){
+		
+		if(strcmp(tokenSymbol,tokenStrings[STRINGZ]) == 0){
+			if(isEnding){
+				ERROR_STRING_UNDEFINED(allTokens->items[i].line + 1,allTokens->items[i].text);
+				return false;
+			}else if(allTokens->items[i+1].kind != KIND_STRING){
+				ERROR_STRING_UNDEFINED(allTokens->items[i + 1].line + 1,allTokens->items[i + 1].text);
+				return false;
+			}
+			if(isLabeling) {count--; isLabeling = false;}
+			count += allTokens->items[i+1].textSize-1;
+			
+		}
+		else if(tokenLine != currentLine && !isLabeling){
 			count++;
 			currentLine = tokenLine;
-			if(tokenKind == KIND_LABEL && allTokens->items[i+1].line == tokenLine){
+			if(tokenKind == KIND_LABEL){
+				isLabeling = true;
 				SYMBOL_APPEND(tokenSymbol, count);
-			}else if(tokenKind == KIND_LABEL){
-				SYMBOL_APPEND(tokenSymbol, count);
-				count--;			
 			}
-		}	
+		}else if(isLabeling){
+			currentLine = tokenLine;
+			isLabeling = false;
+		}
 	}
 	
 	for (size_t t = 0; t < allTokens->size -1; ++t){
 		if(allTokens->items[t].kind == KIND_LABEL){
 			bool found = false;
-			for(size_t s = 0; s < symbolTable.size -1; ++s){
+			for(size_t s = 0; s < symbolTable.size; ++s){
 				if(strcmp(symbolTable.items[s].symbol, allTokens->items[t].text) == 0){found = true; break;}
 			}
 			if(!found){

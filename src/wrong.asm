@@ -8,5 +8,7 @@ TEST2:
 PUTs
 HALT                               
 JMP TEST2                           
-HELLO_STR .STRINGZ "Hello World!"  
+HELLO_STR: .STRINGZ "abc"
+TEST_STR: 
+	.STRINGZ "abc" 
 .END          
