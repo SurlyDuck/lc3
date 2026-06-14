@@ -1,11 +1,15 @@
-#define ERROR_MESSAGE(msg) fprintf(stderr, "<Error> %s\n", msg)	
-#define ERROR_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Error> %s at line %lu: <%s>\n",msg,line,val)	
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
 #include "tokenizer.h"
+
+#define ERROR_MESSAGE(msg) fprintf(stderr, "<Error> %s\n", msg)	
+#define ERROR_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Error> %s at line %lu: <%s>\n",msg,line,val)
+#define WARNING_MESSAGE(msg) fprintf(stderr, "<Warning> %s\n", msg)	
+#define WARNING_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Warning> %s at line %lu: <%s>\n",msg,line,val)
+
+#define ADD_PARAMETERS 3
 
 typedef struct {
 	char *symbol;
@@ -24,65 +28,11 @@ size_t rawSize = 0;
 char *fileRaw;
 uint16_t memory[1<<16];
 
-uint8_t tokenCode[] =  {
-	0x00,		
-	0x01,		/* OP_ADD, */
-	0x05,		/* OP_AND, */
-	0x00,		/* OP_BR, */
-	0x00,
-	0x00,
-	0x00,
-	0x0C,		/* OP_JMP, */
-	0x04,		/* OP_JSR, */
-	0x04,		/* OP_JSRR, */
-	0x02,		/* OP_LD, */
-	0x0A,		/* OP_LDI, */
-	0x06,		/* OP_LDR, */
-	0x0E,		/* OP_LEA, */
-	0x09,		/* OP_NOT, */
-	0x0C,		/* OP_RET, */
-	0x08,		/* OP_RTI, */
-	0x03,		/* OP_ST, */
-	0x0B,		/* OP_STI, */
-	0x07,		/* OP_STR, */
-	0x0F,	/* OP_TRAP, */
-	0x00,		/* END_OPCODES, */
-	0x00,     
-	0x00,	/* REG0,*/
-	0x01,	/* REG1,*/
-	0x02,	/* REG2,*/
-	0x03,	/* REG3,*/
-	0x04,	/* REG4,*/
-	0x05,	/* REG5,*/
-	0x06,	/* REG6,*/
-	0x07,	/* REG7,*/
-	0x00, /* END REGISTERS */
-	0x00,
-	0x20,		/* GETC,*/
-	0x21,		/* OUT,*/
-	0x22,		/* PUTS,*/
-	0x23,		/* IN,*/
-	0x24,		/* PUTSP,*/
-	0x25,		/* HALT,*/
-	0x00,		/* END_TRAP_ROUTINES, */
-	0x00, 
-	0xFF,        /* ORIG,*/
-	0xFF,        /* END,*/
-	0xFF,        /* BLKW,*/
-	0xFF,        /* FILL,*/
-	0xFF,        /* STRINGZ,*/
-	0x00,        /* END PSEUDO OPCODES */
-	0x00,
-	0x00,      	 /* IMMEDIATE */
-	0x00, 
-	0x00
-};
-
 int OpenFile(char *filePath);
 bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
 size_t StrToInt(char *str, int base);
-bool GetMachineCode(token t, uint16_t *pc, uint16_t *bufrCode, size_t line);
+bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line);
 
 int main(int argc, char **argv){
 	if(argc < 2){
@@ -185,7 +135,8 @@ bool ParseTokens(){
 		return false;}
 	
 	uint16_t programCounter = (uint16_t) entryPoint;
-	memory[0] = programCounter;
+	uint16_t binaryCursor   = 0;
+	memory[binaryCursor] = programCounter;
 		
 	if(!FillSymbolTable(programCounter)) {
 		ERROR_MESSAGE("Failure during creation of symbol table.");
@@ -194,23 +145,34 @@ bool ParseTokens(){
 	
 	size_t currentLine = allTokens->items[0].line;
 	for(size_t i = 2; i < allTokens->size-1; ++i){
+		if(allTokens->items[i].kind == KIND_LABEL) continue;
+		if(allTokens->items[i].line == allTokens->items[0].line){
+			WARNING_MESSAGE_LONG("Ignoring token at entrypoint line",allTokens->items[i].line+1,allTokens->items[i].text);	
+			continue;
+		}
 		if(allTokens->items[i].line != currentLine){
-			programCounter++;
 			currentLine = allTokens->items[i].line;
 			uint16_t lineCode = 0x00000000;
-			if(!GetMachineCode(allTokens->items[i],&programCounter,&lineCode,currentLine)){
-				ERROR_MESSAGE("Failure during generation of machine code"); 
+			if(!ParseLineCode(i,&programCounter,&lineCode,currentLine)){
+				ERROR_MESSAGE_LONG("Failure during generation of machine code",currentLine, allTokens->items[i].text); 
 				return false;
 			}
+			binaryCursor++;
+			memory[binaryCursor] = lineCode;
 		}
 	}
 
 	return true;
 }
 
-bool GetMachineCode(token t, uint16_t *pc, uint16_t *bufrCode, size_t line){
+bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line){
+	int lineTokens = 1;
+	while(tokenID+lineTokens < allTokens->size-1){
+		if(allTokens->items[tokenID+lineTokens].line != line) break;
+		else lineTokens++;
+	}
 	
-
+	
 	return true;
 }
 

@@ -114,7 +114,7 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 				}
 				currentTokenText[currentTokenCursor] = '\0';
 				currentToken.kind = KIND_STRING;
-			}else if(currentTokenText[0] == '#' || currentTokenText[0] == 'x' || currentTokenText[0] == 'X' || currentTokenText[0] == 'b' || currentTokenText[0] == 'B'){
+			}else if(currentTokenText[0] == '#' || currentTokenText[0] == 'x' || currentTokenText[0] == 'X' || currentTokenText[0] == 'b'){
 				currentToken.kind = KIND_IMMEDIATE;
 				for(int i = 1; i < currentTokenCursor+1; ++i){
 					if(currentTokenText[i] == '-' || currentTokenText[i] == '+') continue;

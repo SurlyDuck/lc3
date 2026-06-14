@@ -1,6 +1,6 @@
 ;file to test assembler error handling
 
-.ORIG x0000                        
+.ORIG x0000                      
 LEA R0, HELLO_STR
 TEST: ADD R0 R1 R2
 TEST2:
@@ -15,4 +15,4 @@ HELLO_STR: .STRINGZ "Hi"
 TRAP
 TEST_STR: 
 	.STRINGZ "aaa"
-.END          
+.END
