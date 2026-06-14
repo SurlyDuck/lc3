@@ -82,6 +82,7 @@ int OpenFile(char *filePath);
 bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
 size_t StrToInt(char *str, int base);
+bool GetMachineCode(token t, uint16_t *pc, uint16_t *bufrCode, size_t line);
 
 int main(int argc, char **argv){
 	if(argc < 2){
@@ -190,6 +191,25 @@ bool ParseTokens(){
 		ERROR_MESSAGE("Failure during creation of symbol table.");
 		return false;
 	}
+	
+	size_t currentLine = allTokens->items[0].line;
+	for(size_t i = 2; i < allTokens->size-1; ++i){
+		if(allTokens->items[i].line != currentLine){
+			programCounter++;
+			currentLine = allTokens->items[i].line;
+			uint16_t lineCode = 0x00000000;
+			if(!GetMachineCode(allTokens->items[i],&programCounter,&lineCode,currentLine)){
+				ERROR_MESSAGE("Failure during generation of machine code"); 
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool GetMachineCode(token t, uint16_t *pc, uint16_t *bufrCode, size_t line){
+	
 
 	return true;
 }

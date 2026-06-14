@@ -12,6 +12,7 @@ JMP TEST2
 PLACE .BLKW 2
 PLACE2 .FILL xFFFF           
 HELLO_STR: .STRINGZ "Hi"
+TRAP
 TEST_STR: 
 	.STRINGZ "aaa"
 .END          
