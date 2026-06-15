@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <math.h>
 #include "tokenizer.h"
 
@@ -9,7 +10,7 @@
 #define WARNING_MESSAGE(msg) fprintf(stderr, "<Warning> %s\n", msg)	
 #define WARNING_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Warning> %s at line %lu: <%s>\n",msg,line,val)
 
-#define ADD_PARAMETERS 3
+#define ADD_PARAMETERS 4
 
 typedef struct {
 	char *symbol;
@@ -33,6 +34,7 @@ bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
 size_t StrToInt(char *str, int base);
 bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line);
+bool ParseSequence(size_t tokenID, int parametersNum,...);
 
 int main(int argc, char **argv){
 	if(argc < 2){
@@ -82,6 +84,29 @@ int main(int argc, char **argv){
 	if(symbolTable.size > 0) free(symbolTable.items); 
 
 	return 0;
+}
+
+void ReadFile(FILE *file){
+	fseek(file,0,SEEK_END);
+	size_t size = ftell(file);
+	fseek(file,0,SEEK_SET);
+	fileRaw = (char*) malloc(sizeof(char) * size);
+	fread(fileRaw, sizeof(char), size, file);
+	rawSize = size;	
+}
+
+int OpenFile(char *filePath){
+	FILE *file = NULL;
+	if(!(file = fopen(filePath, "r"))){
+		ERROR_MESSAGE("Coundn't open file.");
+		return 0;
+	}
+	
+	ReadFile(file);
+
+	fclose(file);
+
+	return 1;
 }
 
 #define STR_TO_INT(str, size, res, base) do { \
@@ -154,7 +179,7 @@ bool ParseTokens(){
 			currentLine = allTokens->items[i].line;
 			uint16_t lineCode = 0x00000000;
 			if(!ParseLineCode(i,&programCounter,&lineCode,currentLine)){
-				ERROR_MESSAGE_LONG("Failure during generation of machine code",currentLine, allTokens->items[i].text); 
+				ERROR_MESSAGE_LONG("Failure during generation of machine code",currentLine+1, allTokens->items[i].text); 
 				return false;
 			}
 			binaryCursor++;
@@ -172,7 +197,49 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		else lineTokens++;
 	}
 	
+	char *text[lineTokens];
+	uint8_t textSize[lineTokens];
+	for(int i = 0; i < lineTokens; ++i){
+		text[i] = allTokens->items[tokenID+i].text;
+		textSize[i]  = allTokens->items[tokenID+i].textSize;
+	}
+
+	if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_ADD]) == 0){ /* ADD  & AND */
+		if(lineTokens != ADD_PARAMETERS){
+			ERROR_MESSAGE_LONG("Invalid number of parameters for opcode",line+1,allTokens->items[tokenID].text);
+			return false;
+		}
+		
+		if(ParseSequence(tokenID,ADD_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_REGISTER)){
+			/* REGISTER ADD */
+		}else if(ParseSequence(tokenID,ADD_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
+			/* IMMEDIATE ADD */
+			int res = 0;
+			switch(allTokens->items[tokenID+3].text[0]){
+				case '#': STR_TO_INT(text[3], textSize[3], &res, 10); break; 
+				case 'x': STR_TO_INT(text[3], textSize[3], &res, 16); break; 
+				case 'b': STR_TO_INT(text[3], textSize[3], &res, 2); break;
+				default: WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+3].text);
+				
+			}
+		}else {
+			ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1,"ADD");
+			return false;
+		}
+		
+	}
 	
+	return true;
+}
+
+bool ParseSequence(size_t tokenID, int parametersNum, ...){
+	va_list args;
+	va_start(args, parametersNum);
+	for(int i = 0; i < parametersNum; i++){
+		if(allTokens->items[tokenID+i].kind != va_arg(args, token_kind)) return false;
+	}
+	
+	va_end(args);
 	return true;
 }
 
@@ -264,27 +331,3 @@ bool FillSymbolTable(uint16_t entryPoint){
 
 	return true;
 }
-
-void ReadFile(FILE *file){
-	fseek(file,0,SEEK_END);
-	size_t size = ftell(file);
-	fseek(file,0,SEEK_SET);
-	fileRaw = (char*) malloc(sizeof(char) * size);
-	fread(fileRaw, sizeof(char), size, file);
-	rawSize = size;	
-}
-
-int OpenFile(char *filePath){
-	FILE *file = NULL;
-	if(!(file = fopen(filePath, "r"))){
-		ERROR_MESSAGE("Coundn't open file.");
-		return 0;
-	}
-	
-	ReadFile(file);
-
-	fclose(file);
-
-	return 1;
-}
-
