@@ -152,7 +152,9 @@ bool ParseTokens(){
 	switch(allTokens->items[1].text[0]){
 		case '#': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 10); break;
 		case 'x': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 16); break;
+		case 'X': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 16); break;
 		case 'b': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 2); break;
+		case 'B': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 2); break;
 		default: ERROR_MESSAGE_LONG("Unknown address format <# - Dec | x - Hex | b - Bin>",allTokens->items[1].line+1, allTokens->items[1].text); return false;}
 	//printf("%lu\n",entryPoint);
 	if(entryPoint >= (1<<16)){

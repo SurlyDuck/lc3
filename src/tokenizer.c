@@ -68,6 +68,27 @@ static void Uppercase(char *text, size_t size){
 	}
 }
 
+static int IsStrImmediate(const char *txt, int invalidReturn){
+	int i = 0;
+	int invalid = (invalidReturn) ? -1 : 0;
+	int bin = ((txt[0] == 'b' || txt[0] == 'B') && (txt[1] != '\0'));
+	int hex = ((txt[0] == 'x' || txt[0] == 'X') && (txt[1] != '\0'));
+	int dec = ((txt[0] == '#' && txt[1] != '\0') || (txt[0] >= '0' && txt[0] <= '9'));
+	
+	if(!bin && !hex && !dec) return 0;
+
+	while(1){
+		i++;
+		if(txt[i] == '\0') break;
+		if(txt[i] == '-' && i > 1) return invalid;
+		if(txt[i] == '-') continue;
+		if(dec && !(txt[i] >= '0' && txt[i] <= '9')) return invalid; 
+		if(bin && !(txt[i] >= '0' && txt[i] <= '1')) return invalid; 
+		if(hex && !isxdigit(txt[i])) return invalid; 
+	}
+	return 1;
+}
+
 tokens* InitTokenizer(char *raw, size_t rawSize){
 	long long cursor = -1;
 	token_status currentStatus = SEARCHING;
@@ -114,17 +135,10 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 				}
 				currentTokenText[currentTokenCursor] = '\0';
 				currentToken.kind = KIND_STRING;
-			}else if(currentTokenText[0] == '#' || currentTokenText[0] == 'x' || currentTokenText[0] == 'X' || currentTokenText[0] == 'b'){
+			}else if(IsStrImmediate(currentTokenText,0)){
 				currentToken.kind = KIND_IMMEDIATE;
-				for(int i = 1; i < currentTokenCursor+1; ++i){
-					if(currentTokenText[i] == '-' || currentTokenText[i] == '+') continue;
-					if(!isalnum(currentTokenText[i]) || currentTokenText[i] == '_'){
-						currentToken.kind = KIND_INVALID;
-						break;
-					}
-				}
-			}else if (isdigit(currentTokenText[0]) && currentTokenText[0] >= '0' && currentTokenText[0] <= '9'){
-				currentToken.kind = KIND_IMMEDIATE;
+			}else if (IsStrImmediate(currentTokenText,1) == -1){
+				currentToken.kind = KIND_INVALID;
 			}else{
 				Uppercase(currentTokenText, currentTokenCursor + 1);
 				for(int id = 0; id < TOKENS_COUNT; ++id){
