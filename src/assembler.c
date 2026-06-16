@@ -30,6 +30,7 @@ char *fileRaw;
 uint16_t memory[1<<16];
 
 int OpenFile(char *filePath);
+int GetRegCode(char *txt);
 bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
 size_t StrToInt(char *str, int base);
@@ -192,8 +193,10 @@ bool ParseTokens(){
 	return true;
 }
 
+
 bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line){
 	int lineTokens = 1;
+	uint16_t opcode = 0x0000;
 	while(tokenID+lineTokens < allTokens->size-1){
 		if(allTokens->items[tokenID+lineTokens].line != line) break;
 		else lineTokens++;
@@ -206,28 +209,48 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		textSize[i]  = allTokens->items[tokenID+i].textSize;
 	}
 
-	if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_ADD]) == 0){ /* ADD  & AND */
+	if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_ADD]) == 0 || strcmp(allTokens->items[tokenID].text,tokenStrings[OP_AND]) == 0){ /* ADD  & AND */
 		if(lineTokens != ADD_AND_PARAMETERS){
 			ERROR_MESSAGE_LONG("Invalid number of parameters for opcode",line+1,allTokens->items[tokenID].text);
 			return false;
 		}
 		
+		if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_ADD]) == 0) opcode |= 0x1000;
+		if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_AND]) == 0) opcode |= 0x5000;
+
 		if(ParseSequence(tokenID,ADD_AND_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_REGISTER)){
-			/* REGISTER ADD */
+			/* REGISTER ADD OR AND */
+			opcode |=  GetRegCode(text[1]) << 9;
+			opcode |=  GetRegCode(text[2]) << 6;
+			opcode |=  GetRegCode(text[3]);
+			//opcode &= 0x20;
+			*bufrCode = opcode;
+			*pc = *pc + 1;
 		}else if(ParseSequence(tokenID,ADD_AND_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
-			/* IMMEDIATE ADD */
+			/* IMMEDIATE ADD OR AND */
 			int res = 0;
 			switch(allTokens->items[tokenID+3].text[0]){
 				case '#': STR_TO_INT(text[3], textSize[3], &res, 10); break; 
 				case 'x': STR_TO_INT(text[3], textSize[3], &res, 16); break; 
 				case 'b': STR_TO_INT(text[3], textSize[3], &res, 2); break;
-				default: WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+3].text); break;
+				default: WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+3].text); STR_TO_INT(text[3], textSize[3], &res, 10); break;
 			}
 			
-					
+			if(res > 0xF || res < -0x10){
+				ERROR_MESSAGE_LONG("imm5 value out of range <-16..15>",line+1,text[3]);
+				return false;
+			}
+			res = res & 0x1F;
+			opcode |=  GetRegCode(text[1]) << 9;
+			opcode |=  GetRegCode(text[2]) << 6;
+			opcode |= res;
+			opcode |= 0x20;
+			*bufrCode = opcode;
+			*pc = *pc + 1;
+			
 	
 		}else {
-			ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1,"ADD");
+			ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1,text[0]);
 			return false;
 		}
 		
@@ -245,6 +268,17 @@ bool ParseSequence(size_t tokenID, int parametersNum, ...){
 	
 	va_end(args);
 	return true;
+}
+
+int GetRegCode(char *txt){
+	if(strcmp(txt, tokenStrings[REG0]) == 0) return 0x0;
+	else if(strcmp(txt, tokenStrings[REG1]) == 0) return 0x1;
+	else if(strcmp(txt, tokenStrings[REG2]) == 0) return 0x2;
+	else if(strcmp(txt, tokenStrings[REG3]) == 0) return 0x3;
+	else if(strcmp(txt, tokenStrings[REG4]) == 0) return 0x4;
+	else if(strcmp(txt, tokenStrings[REG5]) == 0) return 0x5;
+	else if(strcmp(txt, tokenStrings[REG6]) == 0) return 0x6;
+	else  return 0x7;
 }
 
 #define SYMBOL_APPEND(symbolName, addr) \
