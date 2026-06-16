@@ -73,7 +73,7 @@ static int IsStrImmediate(const char *txt, int invalidReturn){
 	int invalid = (invalidReturn) ? -1 : 0;
 	int bin = ((txt[0] == 'b' || txt[0] == 'B') && (txt[1] != '\0'));
 	int hex = ((txt[0] == 'x' || txt[0] == 'X') && (txt[1] != '\0'));
-	int dec = ((txt[0] == '#' && txt[1] != '\0') || (txt[0] >= '0' && txt[0] <= '9'));
+	int dec = ((txt[0] == '#' && txt[1] != '\0') || (txt[0] >= '0' && txt[0] <= '9') || (txt[0] == '-' && txt[1] != '\0'));
 	
 	if(!bin && !hex && !dec) return 0;
 

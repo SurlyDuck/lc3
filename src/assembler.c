@@ -10,7 +10,7 @@
 #define WARNING_MESSAGE(msg) fprintf(stderr, "<Warning> %s\n", msg)	
 #define WARNING_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Warning> %s at line %lu: <%s>\n",msg,line,val)
 
-#define ADD_PARAMETERS 4
+#define ADD_AND_PARAMETERS 4
 
 typedef struct {
 	char *symbol;
@@ -207,23 +207,25 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 	}
 
 	if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_ADD]) == 0){ /* ADD  & AND */
-		if(lineTokens != ADD_PARAMETERS){
+		if(lineTokens != ADD_AND_PARAMETERS){
 			ERROR_MESSAGE_LONG("Invalid number of parameters for opcode",line+1,allTokens->items[tokenID].text);
 			return false;
 		}
 		
-		if(ParseSequence(tokenID,ADD_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_REGISTER)){
+		if(ParseSequence(tokenID,ADD_AND_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_REGISTER)){
 			/* REGISTER ADD */
-		}else if(ParseSequence(tokenID,ADD_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
+		}else if(ParseSequence(tokenID,ADD_AND_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
 			/* IMMEDIATE ADD */
 			int res = 0;
 			switch(allTokens->items[tokenID+3].text[0]){
 				case '#': STR_TO_INT(text[3], textSize[3], &res, 10); break; 
 				case 'x': STR_TO_INT(text[3], textSize[3], &res, 16); break; 
 				case 'b': STR_TO_INT(text[3], textSize[3], &res, 2); break;
-				default: WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+3].text);
-				
+				default: WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+3].text); break;
 			}
+			
+					
+	
 		}else {
 			ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1,"ADD");
 			return false;
