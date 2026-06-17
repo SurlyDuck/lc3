@@ -27,20 +27,36 @@ tokens *allTokens = NULL;
 s_table symbolTable = {0};
 size_t rawSize = 0;
 char *fileRaw;
+char *fileName;
 uint16_t memory[1<<16];
 
 int OpenFile(char *filePath);
 int GetRegCode(char *txt);
 bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
+bool SaveHex();
 size_t StrToInt(char *str, int base);
 bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line);
 bool ParseSequence(size_t tokenID, int parametersNum,...);
 
 int main(int argc, char **argv){
 	if(argc < 2){
-		ERROR_MESSAGE("\nUsage: assembler program.asm");
+		ERROR_MESSAGE("\nUsage: assembler program.asm [OPTIONS: -h -o]");
 		return 1;
+	}else if(argc >= 3){
+		if(strcmp(argv[2],"-h") == 0){
+			printf("\nOptions:\n-h: Print this message.\n-o: Name of output.\n");
+			return 0;
+		}else if(strcmp(argv[2],"-o") == 0){
+			if(argc < 4){
+				ERROR_MESSAGE("Usage: assembler program.asm -o file.hex");
+				return 1;
+			}
+			fileName = argv[3];
+		}
+	}else{
+		WARNING_MESSAGE("No name of output specified. Using ´main.bin´...");
+		fileName = "main.bin";
 	}
 	
 	if(!OpenFile(argv[1])){
@@ -189,6 +205,10 @@ bool ParseTokens(){
 			memory[binaryCursor] = lineCode;
 		}
 	}
+	
+	if(!SaveHex()){
+		ERROR_MESSAGE("Couldn't create hex file.");
+	}
 
 	return true;
 }
@@ -279,6 +299,12 @@ int GetRegCode(char *txt){
 	else if(strcmp(txt, tokenStrings[REG5]) == 0) return 0x5;
 	else if(strcmp(txt, tokenStrings[REG6]) == 0) return 0x6;
 	else  return 0x7;
+}
+
+bool SaveHex(){
+	
+
+	return true;
 }
 
 #define SYMBOL_APPEND(symbolName, addr) \
