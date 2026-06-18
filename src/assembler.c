@@ -1,7 +1,9 @@
+#define _XOPEN_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include <math.h>
 #include "tokenizer.h"
 
@@ -9,6 +11,8 @@
 #define ERROR_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Error> %s at line %lu: <%s>\n",msg,line,val)
 #define WARNING_MESSAGE(msg) fprintf(stderr, "<Warning> %s\n", msg)	
 #define WARNING_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Warning> %s at line %lu: <%s>\n",msg,line,val)
+#define PRINT_USAGE fprintf(stdout,"\nUsage: ./assembler -f program.asm [OPTIONS: -hol]\n"); \
+fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file use little endianess\n")
 
 #define ADD_AND_PARAMETERS 4
 
@@ -27,39 +31,48 @@ tokens *allTokens = NULL;
 s_table symbolTable = {0};
 size_t rawSize = 0;
 char *fileRaw;
-char *fileName;
-uint16_t memory[1<<16];
+char *inputFileName  = NULL;
+char *outputFileName = NULL;
+bool isLittleEndian  = false;
+uint16_t memory[1<<16] = {0};
 
 int OpenFile(char *filePath);
 int GetRegCode(char *txt);
 bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
-bool SaveHex();
-size_t StrToInt(char *str, int base);
+bool SaveHex(uint16_t hexCursor);
 bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line);
 bool ParseSequence(size_t tokenID, int parametersNum,...);
 
 int main(int argc, char **argv){
 	if(argc < 2){
-		ERROR_MESSAGE("\nUsage: assembler program.asm [OPTIONS: -h -o]");
+		PRINT_USAGE;
 		return 1;
-	}else if(argc >= 3){
-		if(strcmp(argv[2],"-h") == 0){
-			printf("\nOptions:\n-h: Print this message.\n-o: Name of output.\n");
-			return 0;
-		}else if(strcmp(argv[2],"-o") == 0){
-			if(argc < 4){
-				ERROR_MESSAGE("Usage: assembler program.asm -o file.hex");
-				return 1;
-			}
-			fileName = argv[3];
-		}
-	}else{
-		WARNING_MESSAGE("No name of output specified. Using ´main.bin´...");
-		fileName = "main.bin";
 	}
 	
-	if(!OpenFile(argv[1])){
+	char opt = 0;
+	while((opt = getopt(argc, argv,"hf:o:l")) != -1){
+		switch(opt){
+			case 'h': PRINT_USAGE; return 0;
+			case 'f': inputFileName  = optarg; break;
+			case 'o': outputFileName = optarg; break;
+			case 'l': isLittleEndian = true; break;
+			default: PRINT_USAGE;return 1;
+		}
+	}
+
+	if(inputFileName == NULL){
+		fprintf(stdout, "input file not given\n");
+		PRINT_USAGE;
+		return 1;
+	}
+
+	if(outputFileName == NULL){
+		WARNING_MESSAGE("Output file name not given, choosing ´output.bin´");
+		outputFileName = "output.bin";
+	}
+
+	if(!OpenFile(inputFileName)){
 		ERROR_MESSAGE("Couldn't tokenize file.");
 		return 1;
 	}
@@ -180,7 +193,8 @@ bool ParseTokens(){
 	
 	uint16_t programCounter = (uint16_t) entryPoint;
 	uint16_t binaryCursor   = 0;
-	memory[binaryCursor] = programCounter;
+	if(isLittleEndian) memory[binaryCursor] = programCounter;
+	else memory[binaryCursor] = ((programCounter & 0xFF) << 8) | ((programCounter & 0xFF00) >> 8);
 		
 	if(!FillSymbolTable(programCounter)) {
 		ERROR_MESSAGE("Failure during creation of symbol table.");
@@ -202,11 +216,12 @@ bool ParseTokens(){
 				return false;
 			}
 			binaryCursor++;
-			memory[binaryCursor] = lineCode;
+			if(isLittleEndian) memory[binaryCursor] = lineCode;
+			else memory[binaryCursor] = ((lineCode & 0xFF) << 8) | ((lineCode & 0xFF00) >> 8);
 		}
 	}
 	
-	if(!SaveHex()){
+	if(!SaveHex(binaryCursor)){
 		ERROR_MESSAGE("Couldn't create hex file.");
 	}
 
@@ -301,9 +316,19 @@ int GetRegCode(char *txt){
 	else  return 0x7;
 }
 
-bool SaveHex(){
+bool SaveHex(uint16_t hexCursor){
+	FILE *file = NULL;
+	if((file = fopen(outputFileName,"wb")) == NULL){
+		return false;
+	}
 	
+	if(fwrite(memory, sizeof(uint16_t), hexCursor + 1, file) == 0){
+		ERROR_MESSAGE("Couldn't write to file");
+		fclose(file);
+	}
 
+	fclose(file);
+	
 	return true;
 }
 
