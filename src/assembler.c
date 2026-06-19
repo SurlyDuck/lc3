@@ -14,7 +14,8 @@
 #define PRINT_USAGE fprintf(stdout,"\nUsage: ./assembler -f program.asm [OPTIONS: -hol]\n"); \
 fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file use little endianess\n")
 
-#define ADD_AND_PARAMETERS 4
+#define ADD_AND_PARAMETERS   4
+#define PSEUDO_OP_PARAMETERS 2
 
 typedef struct {
 	char *symbol;
@@ -42,7 +43,7 @@ bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
 bool SaveHex(uint16_t hexCursor);
 bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line);
-bool ParseSequence(size_t tokenID, int parametersNum,...);
+bool ParseSequence(size_t tokenID, int parametersReceived, int parametersNum,...);
 
 int main(int argc, char **argv){
 	if(argc < 2){
@@ -208,7 +209,13 @@ bool ParseTokens(){
 			WARNING_MESSAGE_LONG("Ignoring token at entrypoint line",allTokens->items[i].line+1,allTokens->items[i].text);	
 			continue;
 		}
+		token_kind k = allTokens->items[i].kind;
 		if(allTokens->items[i].line != currentLine){
+			if(k != KIND_OPCODE && k != KIND_PSEUDO_OP && k != KIND_TRAP){
+				ERROR_MESSAGE_LONG("Invalid operator",allTokens->items[i].line+1,allTokens->items[i].text);
+				return false;
+			}
+
 			currentLine = allTokens->items[i].line;
 			uint16_t lineCode = 0x00000000;
 			if(!ParseLineCode(i,&programCounter,&lineCode,currentLine)){
@@ -245,15 +252,15 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 	}
 
 	if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_ADD]) == 0 || strcmp(allTokens->items[tokenID].text,tokenStrings[OP_AND]) == 0){ /* ADD  & AND */
-		if(lineTokens != ADD_AND_PARAMETERS){
-			ERROR_MESSAGE_LONG("Invalid number of parameters for opcode",line+1,allTokens->items[tokenID].text);
-			return false;
-		}
+		//if(lineTokens != ADD_AND_PARAMETERS){
+		//	ERROR_MESSAGE_LONG("Invalid number of parameters for opcode",line+1,allTokens->items[tokenID].text);
+		//	return false;
+		//}
 		
 		if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_ADD]) == 0) opcode |= 0x1000;
 		if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_AND]) == 0) opcode |= 0x5000;
 
-		if(ParseSequence(tokenID,ADD_AND_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_REGISTER)){
+		if(ParseSequence(tokenID,lineTokens,ADD_AND_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_REGISTER)){
 			/* REGISTER ADD OR AND */
 			opcode |=  GetRegCode(text[1]) << 9;
 			opcode |=  GetRegCode(text[2]) << 6;
@@ -261,7 +268,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			//opcode &= 0x20;
 			*bufrCode = opcode;
 			*pc = *pc + 1;
-		}else if(ParseSequence(tokenID,ADD_AND_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
+		}else if(ParseSequence(tokenID,lineTokens,ADD_AND_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
 			/* IMMEDIATE ADD OR AND */
 			int res = 0;
 			switch(allTokens->items[tokenID+3].text[0]){
@@ -289,12 +296,17 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			return false;
 		}
 		
+	}else if(strcmp(text[0],tokenStrings[STRINGZ]) == 0){ /* .STRINGZ pseudo-opcode */
+		if(!ParseSequence(tokenID,lineTokens,PSEUDO_OP_PARAMETERS,KIND_PSEUDO_OP,KIND_STRING)){
+			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
+			return false;
+		}
 	}
 	
 	return true;
 }
 
-bool ParseSequence(size_t tokenID, int parametersNum, ...){
+bool ParseSequence(size_t tokenID, int parametersReceived, int parametersNum, ...){
 	va_list args;
 	va_start(args, parametersNum);
 	for(int i = 0; i < parametersNum; i++){
@@ -302,6 +314,8 @@ bool ParseSequence(size_t tokenID, int parametersNum, ...){
 	}
 	
 	va_end(args);
+
+	if(parametersReceived != parametersNum) return false;
 	return true;
 }
 

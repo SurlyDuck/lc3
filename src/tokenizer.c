@@ -26,7 +26,7 @@ char *tokenStrings[] =  {
 	"RTI",	/* OP_RTI, */
 	"ST",		/* OP_ST, */
 	"STI",	/* OP_STI, */
-	"SRT",	/* OP_STR, */
+	"STR",	/* OP_STR, */
 	"TRAP",	/* OP_TRAP, */
 	"",		/* END_OPCODES, */
 	"",     
@@ -76,6 +76,8 @@ static int IsStrImmediate(const char *txt, int invalidReturn){
 	int dec = ((txt[0] == '#' && txt[1] != '\0') || (txt[0] >= '0' && txt[0] <= '9') || (txt[0] == '-' && txt[1] != '\0'));
 	
 	if(!bin && !hex && !dec) return 0;
+	if((bin || dec) && (txt[1] >= 'A' && txt[1] <= 'Z')) return 0;
+	if(hex && (txt[1] > 'F' && txt[1] <= 'Z')) return 0;
 
 	while(1){
 		i++;
