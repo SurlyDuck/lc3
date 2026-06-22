@@ -70,7 +70,7 @@ int main(int argc, char **argv){
 
 	if(outputFileName == NULL){
 		WARNING_MESSAGE("Output file name not given, choosing ´output.bin´");
-		outputFileName = "output.bin";
+		outputFileName = "output.obj";
 	}
 
 	if(!OpenFile(inputFileName)){
@@ -167,6 +167,30 @@ int OpenFile(char *filePath){
 	} \
 } while(0) 
 
+typedef struct {
+	uint16_t hexCode;
+}code;
+
+typedef struct {
+	code *items;
+	size_t size;
+	size_t capacity;	
+}code_lines;
+
+code_lines hexArray = {0};
+
+#define APPEND_CODE(val) do{\
+   if(hexArray.size == 0){ \
+		hexArray.items = (code*) malloc(sizeof(code)); \
+	}else if(hexArray.capacity < sizeof(code) * (hexArray.size+1)){ \
+		hexArray.items = (code*) realloc(hexArray.items, sizeof(code) * (hexArray.size+1)); \
+	}\
+	hexArray.size++;\
+	hexArray.items[hexArray.size-1].hexCode = val; \
+	hexArray.capacity = sizeof(code) * hexArray.size; \
+   \
+}while(0)
+
 bool ParseTokens(){
 	if(strcmp(allTokens->items[0].text,tokenStrings[ORIG])){
 		ERROR_MESSAGE("Entry point <.ORIG xxxx> not found.");
@@ -194,6 +218,7 @@ bool ParseTokens(){
 	
 	uint16_t programCounter = (uint16_t) entryPoint;
 	uint16_t binaryCursor   = 0;
+
 	if(isLittleEndian) memory[binaryCursor] = programCounter;
 	else memory[binaryCursor] = ((programCounter & 0xFF) << 8) | ((programCounter & 0xFF00) >> 8);
 		
@@ -222,9 +247,13 @@ bool ParseTokens(){
 				ERROR_MESSAGE_LONG("Failure during generation of machine code",currentLine+1, allTokens->items[i].text); 
 				return false;
 			}
-			binaryCursor++;
-			if(isLittleEndian) memory[binaryCursor] = lineCode;
-			else memory[binaryCursor] = ((lineCode & 0xFF) << 8) | ((lineCode & 0xFF00) >> 8);
+			for(size_t i = binaryCursor; i < hexArray.size; i++){
+				binaryCursor++;
+				uint16_t c = hexArray.items[i].hexCode;
+				if(isLittleEndian) memory[binaryCursor] = c; 
+				else memory[binaryCursor] = ((c & 0xFF) << 8) | ((c & 0xFF00) >> 8);
+			}
+	
 		}
 	}
 	
@@ -234,7 +263,6 @@ bool ParseTokens(){
 
 	return true;
 }
-
 
 bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line){
 	int lineTokens = 1;
@@ -252,11 +280,6 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 	}
 
 	if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_ADD]) == 0 || strcmp(allTokens->items[tokenID].text,tokenStrings[OP_AND]) == 0){ /* ADD  & AND */
-		//if(lineTokens != ADD_AND_PARAMETERS){
-		//	ERROR_MESSAGE_LONG("Invalid number of parameters for opcode",line+1,allTokens->items[tokenID].text);
-		//	return false;
-		//}
-		
 		if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_ADD]) == 0) opcode |= 0x1000;
 		if(strcmp(allTokens->items[tokenID].text,tokenStrings[OP_AND]) == 0) opcode |= 0x5000;
 
@@ -266,6 +289,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			opcode |=  GetRegCode(text[2]) << 6;
 			opcode |=  GetRegCode(text[3]);
 			//opcode &= 0x20;
+			APPEND_CODE(opcode);
 			*bufrCode = opcode;
 			*pc = *pc + 1;
 		}else if(ParseSequence(tokenID,lineTokens,ADD_AND_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
@@ -287,10 +311,10 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			opcode |=  GetRegCode(text[2]) << 6;
 			opcode |= res;
 			opcode |= 0x20;
+			APPEND_CODE(opcode);
 			*bufrCode = opcode;
 			*pc = *pc + 1;
 			
-	
 		}else {
 			ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1,text[0]);
 			return false;
@@ -301,6 +325,9 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
 			return false;
 		}
+
+		for(int i = 0; text[1][i] != '\0'; ++i) APPEND_CODE(text[1][i]);
+		APPEND_CODE('\0');
 	}
 	
 	return true;

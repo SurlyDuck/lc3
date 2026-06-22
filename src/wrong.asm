@@ -2,8 +2,8 @@
 
 .ORIG x3000
 
-AND R0 R0 #0
+AND R0 R0 R1
 ADD R0 R0 #1
-XIAO: .stringz "My string"
+XIAO: .STRINGZ "My string"
 
 .END
