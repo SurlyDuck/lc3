@@ -140,7 +140,18 @@ int OpenFile(char *filePath){
 	return 1;
 }
 
-#define STR_TO_INT(str, size, res, base) do { \
+#define STR_TO_INT(str, size, res)\
+do {\
+	int base;\
+	switch(str[0]){\
+		case '#': base = 10; break;\
+		case 'x': base = 16; break;\
+		case 'X': base = 16; break;\
+		case 'b': base = 2;  break;\
+		case 'B': base = 2;  break;\
+		default: base = 10; break;\
+	}\
+	\
 	for(uint8_t numPOS = (size - 1); numPOS > 0; --numPOS){ \
  		if(str[numPOS] == '#' || str[numPOS] == 'x' || str[numPOS] == 'b') {  \
 			continue; \
@@ -204,14 +215,15 @@ bool ParseTokens(){
 
 	size_t entryPoint = 0;
 	uint8_t tokenSize = allTokens->items[1].textSize;
-	switch(allTokens->items[1].text[0]){
-		case '#': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 10); break;
-		case 'x': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 16); break;
-		case 'X': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 16); break;
-		case 'b': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 2); break;
-		case 'B': STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 2); break;
+	switch(allTokens->items[1].text[0]){ /*TODO: remove this later */
+		case '#': /*STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 10);*/ break;
+		case 'x': /*STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 16);*/ break;
+		case 'X': /*STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 16);*/ break;
+		case 'b': /*STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 2); */break;
+		case 'B': /*STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint, 2); */break;
 		default: ERROR_MESSAGE_LONG("Unknown address format <# - Dec | x - Hex | b - Bin>",allTokens->items[1].line+1, allTokens->items[1].text); return false;}
-	//printf("%lu\n",entryPoint);
+
+	STR_TO_INT(allTokens->items[1].text, tokenSize, &entryPoint);
 	if(entryPoint >= (1<<16)){
 		ERROR_MESSAGE_LONG("Entrypoint address too high",allTokens->items[1].line+1, allTokens->items[1].text);
 		return false;}
@@ -294,14 +306,18 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			*pc = *pc + 1;
 		}else if(ParseSequence(tokenID,lineTokens,ADD_AND_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
 			/* IMMEDIATE ADD OR AND */
-			int res = 0;
+			int res = 0;/*
 			switch(allTokens->items[tokenID+3].text[0]){
 				case '#': STR_TO_INT(text[3], textSize[3], &res, 10); break; 
 				case 'x': STR_TO_INT(text[3], textSize[3], &res, 16); break; 
 				case 'b': STR_TO_INT(text[3], textSize[3], &res, 2); break;
 				default: WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+3].text); STR_TO_INT(text[3], textSize[3], &res, 10); break;
-			}
-			
+			}*/
+			if(text[3][0] >= '0' && text[3][0] <= '9'){
+			  	WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+3].text);
+				STR_TO_INT_NOPREFIX(text[3], textSize[3], &res, 10);
+			} else STR_TO_INT(text[3], textSize[3], &res);
+
 			if(res > 0xF || res < -0x10){
 				ERROR_MESSAGE_LONG("imm5 value out of range <-16..15>",line+1,text[3]);
 				return false;
@@ -326,10 +342,25 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			return false;
 		}
 
-		for(int i = 0; text[1][i] != '\0'; ++i) APPEND_CODE(text[1][i]);
+		for(int i = 0; text[1][i] != '\0'; ++i) {
+			APPEND_CODE(text[1][i]);
+			*pc = *pc + 1;
+		}
 		APPEND_CODE('\0');
+	}else if(strcmp(text[0],tokenStrings[FILL]) == 0){ /* .FILL pseudo-opcode */
+		if(!ParseSequence(tokenID,lineTokens,PSEUDO_OP_PARAMETERS,KIND_PSEUDO_OP,KIND_IMMEDIATE)){
+			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
+			return false;
+		}
+		
+		int res = 0;
+		if(text[1][0] >= '0' && text[1][0] <= '9'){
+			WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+1].text);
+			STR_TO_INT_NOPREFIX(text[1], textSize[1], &res, 10);
+		}else STR_TO_INT(text[1], textSize[1], &res);
+		APPEND_CODE(res);
+		*pc = *pc + 1;
 	}
-	
 	return true;
 }
 
