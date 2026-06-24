@@ -346,6 +346,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			APPEND_CODE(text[1][i]);
 			*pc = *pc + 1;
 		}
+			*pc = *pc + 1;
 		APPEND_CODE('\0');
 	}else if(strcmp(text[0],tokenStrings[FILL]) == 0){ /* .FILL pseudo-opcode */
 		if(!ParseSequence(tokenID,lineTokens,PSEUDO_OP_PARAMETERS,KIND_PSEUDO_OP,KIND_IMMEDIATE)){
@@ -360,6 +361,23 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		}else STR_TO_INT(text[1], textSize[1], &res);
 		APPEND_CODE(res);
 		*pc = *pc + 1;
+	}else if(strcmp(text[0],tokenStrings[BLKW]) == 0){ /* .BLKW pseudo-opcode */
+		if(!ParseSequence(tokenID,lineTokens,PSEUDO_OP_PARAMETERS,KIND_PSEUDO_OP,KIND_IMMEDIATE)){
+			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
+			return false;
+		}
+
+		size_t res = 0;
+		if(text[1][0] >= '0' && text[1][0] <= '9'){
+			WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+1].text);
+			STR_TO_INT_NOPREFIX(text[1], textSize[1], &res, 10);
+		}else STR_TO_INT(text[1], textSize[1], &res);
+		
+		for(size_t i = 0; i < res; ++i){
+			APPEND_CODE(0x0000);
+			*pc = *pc + 1;
+		}
+
 	}
 	return true;
 }
