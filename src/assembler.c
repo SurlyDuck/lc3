@@ -16,6 +16,7 @@ fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file us
 
 #define ADD_AND_PARAMETERS   4
 #define PSEUDO_OP_PARAMETERS 2
+#define BR_PARAMETERS        2
 
 typedef struct {
 	char *symbol;
@@ -279,6 +280,7 @@ bool ParseTokens(){
 bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line){
 	int lineTokens = 1;
 	uint16_t opcode = 0x0000;
+	
 	while(tokenID+lineTokens < allTokens->size-1){
 		if(allTokens->items[tokenID+lineTokens].line != line) break;
 		else lineTokens++;
@@ -336,6 +338,36 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			return false;
 		}
 		
+	}else if(strcmp(text[0],tokenStrings[OP_BR]) == 0 || strcmp(text[0],tokenStrings[OP_BRn]) == 0 || strcmp(text[0],tokenStrings[OP_BRp]) == 0 ||  strcmp(text[0],tokenStrings[OP_BRz]) == 0){ /* BR BRn BRP opcode */
+		if(!ParseSequence(tokenID,lineTokens,BR_PARAMETERS,KIND_OPCODE,KIND_LABEL)){
+			ERROR_MESSAGE_LONG("Invalid parameters for BR parameter",line+1, text[0]);
+			return false;
+		}
+
+		uint16_t labelAddr = 0;
+		int16_t pcOffset9  = 0;
+		for(size_t i = 0; i < symbolTable.size; ++i){
+			if(strcmp(symbolTable.items[i].symbol, text[1]) == 0){
+				labelAddr = symbolTable.items[i].address;
+				break;
+			}
+		}
+		pcOffset9 = labelAddr - *pc;
+		if(pcOffset9 > 255 || pcOffset9 < -256){
+			ERROR_MESSAGE_LONG("Label is out of reach. Address must fit in 9 bits",line+1, text[1]);
+			return false;
+		}
+
+		if(pcOffset9 < 0) opcode |= (~(pcOffset9 & 0x01FF)) + 1;
+		else opcode |= pcOffset9 & 0x01FF;
+
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BR]) == 0) * 0x7) << 11;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BRn]) == 0) * 0x1) << 11;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BRp]) == 0) * 0x1) << 9;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BRz]) == 0) * 0x1) << 10;
+
+		APPEND_CODE(opcode);
+
 	}else if(strcmp(text[0],tokenStrings[STRINGZ]) == 0){ /* .STRINGZ pseudo-opcode */
 		if(!ParseSequence(tokenID,lineTokens,PSEUDO_OP_PARAMETERS,KIND_PSEUDO_OP,KIND_STRING)){
 			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
@@ -368,10 +400,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		}
 
 		size_t res = 0;
-		if(text[1][0] >= '0' && text[1][0] <= '9'){
-			WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+1].text);
-			STR_TO_INT_NOPREFIX(text[1], textSize[1], &res, 10);
-		}else STR_TO_INT(text[1], textSize[1], &res);
+		STR_TO_INT_NOPREFIX(text[1], textSize[1], &res, 10);
 		
 		for(size_t i = 0; i < res; ++i){
 			APPEND_CODE(0x0000);
@@ -411,7 +440,7 @@ bool SaveHex(uint16_t hexCursor){
 	if((file = fopen(outputFileName,"wb")) == NULL){
 		return false;
 	}
-	
+
 	if(fwrite(memory, sizeof(uint16_t), hexCursor + 1, file) == 0){
 		ERROR_MESSAGE("Couldn't write to file");
 		fclose(file);
@@ -457,7 +486,7 @@ bool FillSymbolTable(uint16_t entryPoint){
 			}
 			if(isLabeling) {count--; isLabeling = false;}
 			else{ currentLine = tokenLine;}
-			count += allTokens->items[i+1].textSize-1;
+			count += allTokens->items[i+1].textSize;
 		}else if(strcmp(tokenSymbol,tokenStrings[BLKW]) == 0){
 			if(isEnding){
 				ERROR_MESSAGE_LONG("Value for .BLKW undefined",allTokens->items[i].line + 1,allTokens->items[i].text);
@@ -483,12 +512,13 @@ bool FillSymbolTable(uint16_t entryPoint){
 			else{ currentLine = tokenLine;}
 			count++;
 		}else if(tokenLine != currentLine && !isLabeling){
-			count++;
 			currentLine = tokenLine;
 			if(tokenKind == KIND_LABEL){
 				isLabeling = true;
 				SYMBOL_APPEND(tokenSymbol, count);
 			}
+
+			count++;
 		}else if(isLabeling){
 			currentLine = tokenLine;
 			isLabeling = false;
