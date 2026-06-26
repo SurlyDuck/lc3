@@ -352,20 +352,22 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 				break;
 			}
 		}
-		pcOffset9 = labelAddr - *pc;
+
+		pcOffset9 = labelAddr - (*pc+1);
 		if(pcOffset9 > 255 || pcOffset9 < -256){
 			ERROR_MESSAGE_LONG("Label is out of reach. Address must fit in 9 bits",line+1, text[1]);
 			return false;
 		}
 
-		if(pcOffset9 < 0) opcode |= (~(pcOffset9 & 0x01FF)) + 1;
+		if(pcOffset9 < 0) opcode |= pcOffset9 & 0x01FF;
 		else opcode |= pcOffset9 & 0x01FF;
 
-		opcode |= ((strcmp(text[0], tokenStrings[OP_BR]) == 0) * 0x7) << 11;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BR]) == 0) * 0x7) << 9;
 		opcode |= ((strcmp(text[0], tokenStrings[OP_BRn]) == 0) * 0x1) << 11;
 		opcode |= ((strcmp(text[0], tokenStrings[OP_BRp]) == 0) * 0x1) << 9;
 		opcode |= ((strcmp(text[0], tokenStrings[OP_BRz]) == 0) * 0x1) << 10;
-
+		
+		*pc = *pc + 1;
 		APPEND_CODE(opcode);
 
 	}else if(strcmp(text[0],tokenStrings[STRINGZ]) == 0){ /* .STRINGZ pseudo-opcode */
