@@ -17,6 +17,8 @@ fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file us
 #define ADD_AND_PARAMETERS   4
 #define PSEUDO_OP_PARAMETERS 2
 #define BR_PARAMETERS        2
+#define JMP_OP_PARAMETERS    2 
+#define RET_OP_PARAMETERS    1
 
 typedef struct {
 	char *symbol;
@@ -367,6 +369,28 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		opcode |= ((strcmp(text[0], tokenStrings[OP_BRp]) == 0) * 0x1) << 9;
 		opcode |= ((strcmp(text[0], tokenStrings[OP_BRz]) == 0) * 0x1) << 10;
 		
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
+
+	}else if(strcmp(text[0],tokenStrings[OP_JMP]) == 0){ /* JMP opcode */
+		if(!ParseSequence(tokenID,lineTokens,JMP_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER)){
+			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
+			return false;
+		}
+
+		opcode |= GetRegCode(text[1]) << 6;
+		opcode |= 0xC000;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
+
+	}else if(strcmp(text[0],tokenStrings[OP_RET]) == 0){ /* RET opcode */
+		if(!ParseSequence(tokenID,lineTokens,RET_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER)){
+			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
+			return false;
+		}
+
+		opcode |= 0x7 << 6;
+		opcode |= 0xC000;
 		*pc = *pc + 1;
 		APPEND_CODE(opcode);
 

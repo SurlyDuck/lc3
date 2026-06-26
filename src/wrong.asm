@@ -8,7 +8,8 @@ BEGIN:
 LOOP:
 	ADD R0 R0 #-1
 	BRP LOOP
-BR BEGIN
+JMP R0
+RET
 
 string: .STRINGZ "TEST" 
 array0: .BLKW 1
