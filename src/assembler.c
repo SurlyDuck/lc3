@@ -407,17 +407,29 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			*pc = *pc + 1;
 		APPEND_CODE('\0');
 	}else if(strcmp(text[0],tokenStrings[FILL]) == 0){ /* .FILL pseudo-opcode */
+		bool isLabel = false;
 		if(!ParseSequence(tokenID,lineTokens,PSEUDO_OP_PARAMETERS,KIND_PSEUDO_OP,KIND_IMMEDIATE)){
-			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
-			return false;
+			if(!ParseSequence(tokenID,lineTokens,PSEUDO_OP_PARAMETERS,KIND_PSEUDO_OP,KIND_LABEL)){
+				ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
+				return false;
+			}else isLabel = true;
 		}
 		
 		int res = 0;
-		if(text[1][0] >= '0' && text[1][0] <= '9'){
+		size_t resAddress = 0;
+		if(text[1][0] >= '0' && text[1][0] <= '9' && !isLabel){
 			WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+1].text);
 			STR_TO_INT_NOPREFIX(text[1], textSize[1], &res, 10);
+		}else if(isLabel){
+			for(size_t i = 0; i < symbolTable.size; ++i){
+				if(strcmp(symbolTable.items[i].symbol,text[1]) == 0){
+					resAddress = symbolTable.items[i].address;
+					break;
+				}
+			}	
 		}else STR_TO_INT(text[1], textSize[1], &res);
-		APPEND_CODE(res);
+		if(!isLabel) APPEND_CODE(res);
+		else APPEND_CODE(resAddress);
 		*pc = *pc + 1;
 	}else if(strcmp(text[0],tokenStrings[BLKW]) == 0){ /* .BLKW pseudo-opcode */
 		if(!ParseSequence(tokenID,lineTokens,PSEUDO_OP_PARAMETERS,KIND_PSEUDO_OP,KIND_IMMEDIATE)){
@@ -530,7 +542,7 @@ bool FillSymbolTable(uint16_t entryPoint){
 			if(isEnding){
 				ERROR_MESSAGE_LONG("Value for .FILL undefined",allTokens->items[i].line + 1,allTokens->items[i].text);
 				return false;
-			}else if(allTokens->items[i+1].kind != KIND_IMMEDIATE){
+			}else if(allTokens->items[i+1].kind != KIND_IMMEDIATE && allTokens->items[i+1].kind != KIND_LABEL){
 				ERROR_MESSAGE_LONG("Value for .FILL undefined",allTokens->items[i + 1].line + 1,allTokens->items[i + 1].text);
 				return false;
 			}
