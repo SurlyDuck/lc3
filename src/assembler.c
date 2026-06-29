@@ -19,6 +19,7 @@ fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file us
 #define BR_PARAMETERS        2
 #define JMP_OP_PARAMETERS    2 
 #define RET_OP_PARAMETERS    1
+#define LD_OP_PARAMETERS     3
 
 typedef struct {
 	char *symbol;
@@ -42,7 +43,7 @@ uint16_t memory[1<<16] = {0};
 
 int OpenFile(char *filePath);
 int GetRegCode(char *txt);
-uint16_t GetPCoffset9(char *label, size_t pc);
+uint16_t GetPCoffset9(char *label, size_t pc, bool isImmediate, size_t line);
 bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
 bool SaveHex(uint16_t hexCursor);
@@ -354,16 +355,10 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			}else isImmediate = true;	
 		}
 		
-		int16_t pcOffset9  = 0;
-		if(!isImmediate) pcOffset9 = GetPCoffset9(text[1], *pc);
-		else{
-			GET_NUM_AND_WARNING(text[1], pcOffset9, line);
-		} 
-		if((pcOffset9 == 0 && !isImmediate) || (isImmediate && (pcOffset9 > 255 || pcOffset9 < -256))){
-			ERROR_MESSAGE_LONG("Label is out of reach. Address must fit in 9 bits",line+1, text[1]);
-			return false;
-		} 
-		opcode |= pcOffset9 & 0x01FF;
+		int16_t PCoffset9  = GetPCoffset9(text[1], *pc, isImmediate, line+1);
+		if(PCoffset9 > 255) return false;
+
+		opcode |= PCoffset9 & 0x01FF;
 		opcode |= ((strcmp(text[0], tokenStrings[OP_BR]) == 0) * 0x7) << 9;
 		opcode |= ((strcmp(text[0], tokenStrings[OP_BRn]) == 0) * 0x1) << 11;
 		opcode |= ((strcmp(text[0], tokenStrings[OP_BRp]) == 0) * 0x1) << 9;
@@ -395,14 +390,17 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		APPEND_CODE(opcode);
 
 	}else if(strcmp(text[0],tokenStrings[OP_LD]) == 0 || strcmp(text[0],tokenStrings[OP_LDI]) == 0){ /*LD-LDI opcode */
-		if(!ParseSequence(tokenID,lineTokens,BR_PARAMETERS,KIND_OPCODE,KIND_LABEL)){
-			ERROR_MESSAGE_LONG("Invalid parameters for BR parameter",line+1, text[0]);
-			return false;
+		bool isImmediate = false;
+		if(!ParseSequence(tokenID,lineTokens,LD_OP_PARAMETERS,KIND_OPCODE,KIND_LABEL)){
+			if(!ParseSequence(tokenID,lineTokens,LD_OP_PARAMETERS,KIND_OPCODE,KIND_IMMEDIATE)){
+				ERROR_MESSAGE_LONG("Invalid parameters for LD parameter",line+1, text[0]);
+				return false;
+			}else isImmediate = true;
 		}
 		
-		int16_t pcOffset9  = GetPCoffset9(text[1], *pc);
-		if(pcOffset9 == 0){
-			ERROR_MESSAGE_LONG("Label is out of reach. Address must fit in 9 bits",line+1, text[1]);
+		int16_t PCoffset9  = GetPCoffset9(text[1], *pc, isImmediate, line+1);
+
+		if(PCoffset9 > 255){
 			return false;
 		} 
 		
@@ -485,19 +483,25 @@ int GetRegCode(char *txt){
 	else  return 0x7;
 }
 
-uint16_t GetPCoffset9(char *label, size_t pc){
-	uint16_t labelAddr = 0;
+uint16_t GetPCoffset9(char *label, size_t pc, bool isImmediate, size_t line){
 	int16_t pcOffset9  = 0;
-	for(size_t i = 0; i < symbolTable.size; ++i){
-		if(strcmp(symbolTable.items[i].symbol, label) == 0){
-			labelAddr = symbolTable.items[i].address;
-			break;
+	if(!isImmediate){
+		uint16_t labelAddr = 0;
+		for(size_t i = 0; i < symbolTable.size; ++i){
+			if(strcmp(symbolTable.items[i].symbol, label) == 0){
+				labelAddr = symbolTable.items[i].address;
+				break;
+			}
 		}
+
+		pcOffset9 = labelAddr - (pc+1);
+	}else {
+		GET_NUM_AND_WARNING(label, pcOffset9, line);
 	}
 
-	pcOffset9 = labelAddr - (pc+1);
 	if(pcOffset9 > 255 || pcOffset9 < -256){
-		return 0;
+		ERROR_MESSAGE_LONG("Label is out of reach. Address must fit in 9 bits",line+1, label);
+		return 1000;
 	}
 
 	return pcOffset9;
