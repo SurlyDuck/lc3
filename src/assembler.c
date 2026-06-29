@@ -42,6 +42,7 @@ uint16_t memory[1<<16] = {0};
 
 int OpenFile(char *filePath);
 int GetRegCode(char *txt);
+uint16_t GetPCoffset9(char *label, size_t pc);
 bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
 bool SaveHex(uint16_t hexCursor);
@@ -310,13 +311,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			*pc = *pc + 1;
 		}else if(ParseSequence(tokenID,lineTokens,ADD_AND_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
 			/* IMMEDIATE ADD OR AND */
-			int res = 0;/*
-			switch(allTokens->items[tokenID+3].text[0]){
-				case '#': STR_TO_INT(text[3], textSize[3], &res, 10); break; 
-				case 'x': STR_TO_INT(text[3], textSize[3], &res, 16); break; 
-				case 'b': STR_TO_INT(text[3], textSize[3], &res, 2); break;
-				default: WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+3].text); STR_TO_INT(text[3], textSize[3], &res, 10); break;
-			}*/
+			int res = 0;
 			if(text[3][0] >= '0' && text[3][0] <= '9'){
 			  	WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+3].text);
 				STR_TO_INT_NOPREFIX(text[3], textSize[3], &res, 10);
@@ -345,7 +340,8 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			ERROR_MESSAGE_LONG("Invalid parameters for BR parameter",line+1, text[0]);
 			return false;
 		}
-
+		
+		/*
 		uint16_t labelAddr = 0;
 		int16_t pcOffset9  = 0;
 		for(size_t i = 0; i < symbolTable.size; ++i){
@@ -360,10 +356,13 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			ERROR_MESSAGE_LONG("Label is out of reach. Address must fit in 9 bits",line+1, text[1]);
 			return false;
 		}
-
-		if(pcOffset9 < 0) opcode |= pcOffset9 & 0x01FF;
-		else opcode |= pcOffset9 & 0x01FF;
-
+		*/
+		int16_t pcOffset9  = GetPCoffset9(text[1], *pc);
+		if(pcOffset9 == 0){
+			ERROR_MESSAGE_LONG("Label is out of reach. Address must fit in 9 bits",line+1, text[1]);
+			return false;
+		} 
+		opcode |= pcOffset9 & 0x01FF;
 		opcode |= ((strcmp(text[0], tokenStrings[OP_BR]) == 0) * 0x7) << 9;
 		opcode |= ((strcmp(text[0], tokenStrings[OP_BRn]) == 0) * 0x1) << 11;
 		opcode |= ((strcmp(text[0], tokenStrings[OP_BRp]) == 0) * 0x1) << 9;
@@ -418,7 +417,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		int res = 0;
 		size_t resAddress = 0;
 		if(text[1][0] >= '0' && text[1][0] <= '9' && !isLabel){
-			WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line,allTokens->items[tokenID+1].text);
+			WARNING_MESSAGE_LONG("Immediate value without prefix, assuming decimal",line + 1,allTokens->items[tokenID+1].text);
 			STR_TO_INT_NOPREFIX(text[1], textSize[1], &res, 10);
 		}else if(isLabel){
 			for(size_t i = 0; i < symbolTable.size; ++i){
@@ -471,6 +470,24 @@ int GetRegCode(char *txt){
 	else if(strcmp(txt, tokenStrings[REG5]) == 0) return 0x5;
 	else if(strcmp(txt, tokenStrings[REG6]) == 0) return 0x6;
 	else  return 0x7;
+}
+
+uint16_t GetPCoffset9(char *label, size_t pc){
+	uint16_t labelAddr = 0;
+	int16_t pcOffset9  = 0;
+	for(size_t i = 0; i < symbolTable.size; ++i){
+		if(strcmp(symbolTable.items[i].symbol, label) == 0){
+			labelAddr = symbolTable.items[i].address;
+			break;
+		}
+	}
+
+	pcOffset9 = labelAddr - (pc+1);
+	if(pcOffset9 > 255 || pcOffset9 < -256){
+		return 0;
+	}
+
+	return pcOffset9;
 }
 
 bool SaveHex(uint16_t hexCursor){
