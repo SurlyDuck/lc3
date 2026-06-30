@@ -355,7 +355,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			}else isImmediate = true;	
 		}
 		
-		int16_t PCoffset9  = GetPCoffset9(text[1], *pc, isImmediate, line+1);
+		int16_t PCoffset9  = GetPCoffset9(text[1], *pc, isImmediate, line);
 		if(PCoffset9 > 255) return false;
 
 		opcode |= PCoffset9 & 0x01FF;
@@ -391,19 +391,25 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 
 	}else if(strcmp(text[0],tokenStrings[OP_LD]) == 0 || strcmp(text[0],tokenStrings[OP_LDI]) == 0){ /*LD-LDI opcode */
 		bool isImmediate = false;
-		if(!ParseSequence(tokenID,lineTokens,LD_OP_PARAMETERS,KIND_OPCODE,KIND_LABEL)){
-			if(!ParseSequence(tokenID,lineTokens,LD_OP_PARAMETERS,KIND_OPCODE,KIND_IMMEDIATE)){
+		if(!ParseSequence(tokenID,lineTokens,LD_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER, KIND_LABEL)){
+			if(!ParseSequence(tokenID,lineTokens,LD_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER, KIND_IMMEDIATE)){
 				ERROR_MESSAGE_LONG("Invalid parameters for LD parameter",line+1, text[0]);
 				return false;
 			}else isImmediate = true;
 		}
 		
-		int16_t PCoffset9  = GetPCoffset9(text[1], *pc, isImmediate, line+1);
+		int16_t PCoffset9  = GetPCoffset9(text[2], *pc, isImmediate, line);
 
 		if(PCoffset9 > 255){
 			return false;
 		} 
-		
+	
+		opcode |= PCoffset9 & 0x01FF;
+		if(strcmp(text[0],tokenStrings[OP_LD]) == 0)   opcode  |= 0x2 << 12;
+		if(strcmp(text[0],tokenStrings[OP_LDI]) == 0)  opcode |= 0xA << 12;
+		opcode |= GetRegCode(text[1]) << 9;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
 	}else if(strcmp(text[0],tokenStrings[STRINGZ]) == 0){ /* .STRINGZ pseudo-opcode */
 		if(!ParseSequence(tokenID,lineTokens,PSEUDO_OP_PARAMETERS,KIND_PSEUDO_OP,KIND_STRING)){
 			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
@@ -414,7 +420,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			APPEND_CODE(text[1][i]);
 			*pc = *pc + 1;
 		}
-			*pc = *pc + 1;
+		*pc = *pc + 1;
 		APPEND_CODE('\0');
 	}else if(strcmp(text[0],tokenStrings[FILL]) == 0){ /* .FILL pseudo-opcode */
 		bool isLabel = false;
