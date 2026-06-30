@@ -20,6 +20,7 @@ fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file us
 #define JMP_OP_PARAMETERS    2 
 #define RET_OP_PARAMETERS    1
 #define LD_OP_PARAMETERS     3
+#define LDR_OP_PARAMETERS    4
 
 typedef struct {
 	char *symbol;
@@ -44,6 +45,7 @@ uint16_t memory[1<<16] = {0};
 int OpenFile(char *filePath);
 int GetRegCode(char *txt);
 uint16_t GetPCoffset9(char *label, size_t pc, bool isImmediate, size_t line);
+uint16_t GetSymbolAddress(char *symbol);
 bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
 bool SaveHex(uint16_t hexCursor);
@@ -389,6 +391,33 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		*pc = *pc + 1;
 		APPEND_CODE(opcode);
 
+	}else if(strcmp(text[0],tokenStrings[OP_LDR]) == 0){ /* LDR opcode */
+		bool isImmediate = true;
+		if(!ParseSequence(tokenID,lineTokens,LDR_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
+			if(!ParseSequence(tokenID,lineTokens,LDR_OP_PARAMETERS,KIND_OPCODE,
+				KIND_REGISTER,KIND_REGISTER,KIND_LABEL)){
+				ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
+				return false;
+			}else isImmediate = false;
+		}
+		
+		int offset6 = 0;
+		if(isImmediate) {
+			GET_NUM_AND_WARNING(text[3], offset6, line);
+		}else offset6 = (int) GetSymbolAddress(text[3]);
+
+		if(offset6 > 31 || offset6 < -32){
+			ERROR_MESSAGE_LONG("Label out of reach. offset6 address must fit in 6 bits",line+1,text[3]);
+			return false;
+		}
+
+		opcode |= offset6 & 0x3F;
+		opcode |= GetRegCode(text[2]) << 6;
+		opcode |= GetRegCode(text[1]) << 9;
+		opcode |= 0x6 << 12;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
+
 	}else if(strcmp(text[0],tokenStrings[OP_LD]) == 0 || strcmp(text[0],tokenStrings[OP_LDI]) == 0){ /*LD-LDI opcode */
 		bool isImmediate = false;
 		if(!ParseSequence(tokenID,lineTokens,LD_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER, KIND_LABEL)){
@@ -487,6 +516,18 @@ int GetRegCode(char *txt){
 	else if(strcmp(txt, tokenStrings[REG5]) == 0) return 0x5;
 	else if(strcmp(txt, tokenStrings[REG6]) == 0) return 0x6;
 	else  return 0x7;
+}
+
+uint16_t GetSymbolAddress(char *symbol){
+	uint16_t adr = 0;
+	for(size_t i = 0; i < symbolTable.size; ++i){
+		if(strcmp(symbol, symbolTable.items[i].symbol) == 0 ){
+			adr = symbolTable.items[i].address;
+			break;
+		}
+	}
+
+	return adr;
 }
 
 uint16_t GetPCoffset9(char *label, size_t pc, bool isImmediate, size_t line){
@@ -618,3 +659,4 @@ bool FillSymbolTable(uint16_t entryPoint){
 
 	return true;
 }
+
