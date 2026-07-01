@@ -21,6 +21,7 @@ fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file us
 #define RET_OP_PARAMETERS    1
 #define LD_OP_PARAMETERS     3
 #define LDR_OP_PARAMETERS    4
+#define JSR_OP_PARAMETERS    2
 
 typedef struct {
 	char *symbol;
@@ -44,7 +45,7 @@ uint16_t memory[1<<16] = {0};
 
 int OpenFile(char *filePath);
 int GetRegCode(char *txt);
-uint16_t GetPCoffset9(char *label, size_t pc, bool isImmediate, size_t line);
+uint16_t GetPCoffset(char *label, size_t pc, bool isImmediate, size_t line, uint8_t size);
 uint16_t GetSymbolAddress(char *symbol);
 bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
@@ -357,7 +358,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			}else isImmediate = true;	
 		}
 		
-		int16_t PCoffset9  = GetPCoffset9(text[1], *pc, isImmediate, line);
+		int16_t PCoffset9  = GetPCoffset(text[1], *pc, isImmediate, line, 9);
 		if(PCoffset9 > 255) return false;
 
 		opcode |= PCoffset9 & 0x01FF;
@@ -418,6 +419,31 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		*pc = *pc + 1;
 		APPEND_CODE(opcode);
 
+	}else if(strcmp(text[0],tokenStrings[OP_JSR]) == 0){ /* JSR opcode */
+		bool isImmediate = false;
+		if(!ParseSequence(tokenID,lineTokens,JSR_OP_PARAMETERS,KIND_OPCODE,KIND_LABEL)){
+			if(!ParseSequence(tokenID,lineTokens,JSR_OP_PARAMETERS,KIND_OPCODE,KIND_IMMEDIATE)){
+				ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1, text[0]);
+				return false;
+			}else isImmediate = true;
+		}
+		
+		uint16_t pcOffset11 = GetPCoffset(text[1], *pc, isImmediate, line, 11);
+		opcode |= pcOffset11 & 0x7FFF;
+		opcode |= 9 << 11;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
+
+	}else if(strcmp(text[0],tokenStrings[OP_JSRR]) == 0){ /* JSRR opcode */
+		if(!ParseSequence(tokenID,lineTokens,JSR_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER)){
+			ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1, text[0]);
+			return false;
+		}
+		
+		opcode |= GetRegCode(text[1]) << 6;
+		opcode |= 0x4 << 12;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
 	}else if(strcmp(text[0],tokenStrings[OP_LD]) == 0 || strcmp(text[0],tokenStrings[OP_LDI]) == 0){ /*LD-LDI opcode */
 		bool isImmediate = false;
 		if(!ParseSequence(tokenID,lineTokens,LD_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER, KIND_LABEL)){
@@ -427,7 +453,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			}else isImmediate = true;
 		}
 		
-		int16_t PCoffset9  = GetPCoffset9(text[2], *pc, isImmediate, line);
+		int16_t PCoffset9  = GetPCoffset(text[2], *pc, isImmediate, line, 9);
 
 		if(PCoffset9 > 255){
 			return false;
@@ -530,8 +556,8 @@ uint16_t GetSymbolAddress(char *symbol){
 	return adr;
 }
 
-uint16_t GetPCoffset9(char *label, size_t pc, bool isImmediate, size_t line){
-	int16_t pcOffset9  = 0;
+uint16_t GetPCoffset(char *label, size_t pc, bool isImmediate, size_t line, uint8_t size){
+	int16_t pcOffset  = 0;
 	if(!isImmediate){
 		uint16_t labelAddr = 0;
 		for(size_t i = 0; i < symbolTable.size; ++i){
@@ -541,17 +567,20 @@ uint16_t GetPCoffset9(char *label, size_t pc, bool isImmediate, size_t line){
 			}
 		}
 
-		pcOffset9 = labelAddr - (pc+1);
+		pcOffset = labelAddr - (pc+1);
 	}else {
-		GET_NUM_AND_WARNING(label, pcOffset9, line);
+		GET_NUM_AND_WARNING(label, pcOffset, line);
 	}
 
-	if(pcOffset9 > 255 || pcOffset9 < -256){
+	if((pcOffset > 255 || pcOffset < -256) && size == 9){
 		ERROR_MESSAGE_LONG("Label is out of reach. Address must fit in 9 bits",line+1, label);
 		return 1000;
+	}else if((pcOffset > 1023 || pcOffset < -1024) && size == 11){
+		ERROR_MESSAGE_LONG("Label is out of reach. Address must fit in 9 bits",line+1, label);
+		return 2000;
 	}
 
-	return pcOffset9;
+	return pcOffset;
 }
 
 bool SaveHex(uint16_t hexCursor){
