@@ -23,6 +23,7 @@ fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file us
 #define LDR_OP_PARAMETERS    4
 #define JSR_OP_PARAMETERS    2
 #define LEA_OP_PARAMETERS    3
+#define NOT_OP_PARAMETERS    3
 
 #define PCOFFSET9_SIZE       9
 #define PCOFFSET11_SIZE     11
@@ -422,7 +423,18 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		opcode |= 0x6 << 12;
 		*pc = *pc + 1;
 		APPEND_CODE(opcode);
+	}else if(strcmp(text[0],tokenStrings[OP_NOT]) == 0){ /* NOT opcode */
+		if(!ParseSequence(tokenID,lineTokens,NOT_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER, KIND_REGISTER)){
+			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
+			return false;
+		}
 
+		opcode |= GetRegCode(text[1]) << 9;
+		opcode |= GetRegCode(text[2]) << 6;
+		opcode |= 0x3F;
+		opcode |= 0x9 << 12;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
 	}else if(strcmp(text[0],tokenStrings[OP_JSR]) == 0){ /* JSR opcode */
 		bool isImmediate = false;
 		if(!ParseSequence(tokenID,lineTokens,JSR_OP_PARAMETERS,KIND_OPCODE,KIND_LABEL)){
