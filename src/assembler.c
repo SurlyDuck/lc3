@@ -22,6 +22,10 @@ fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file us
 #define LD_OP_PARAMETERS     3
 #define LDR_OP_PARAMETERS    4
 #define JSR_OP_PARAMETERS    2
+#define LEA_OP_PARAMETERS    3
+
+#define PCOFFSET9_SIZE       9
+#define PCOFFSET11_SIZE     11
 
 typedef struct {
 	char *symbol;
@@ -358,7 +362,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			}else isImmediate = true;	
 		}
 		
-		int16_t PCoffset9  = GetPCoffset(text[1], *pc, isImmediate, line, 9);
+		int16_t PCoffset9  = GetPCoffset(text[1], *pc, isImmediate, line, PCOFFSET9_SIZE);
 		if(PCoffset9 > 255) return false;
 
 		opcode |= PCoffset9 & 0x01FF;
@@ -428,7 +432,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			}else isImmediate = true;
 		}
 		
-		uint16_t pcOffset11 = GetPCoffset(text[1], *pc, isImmediate, line, 11);
+		uint16_t pcOffset11 = GetPCoffset(text[1], *pc, isImmediate, line, PCOFFSET11_SIZE);
 		opcode |= pcOffset11 & 0x7FFF;
 		opcode |= 9 << 11;
 		*pc = *pc + 1;
@@ -444,6 +448,22 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		opcode |= 0x4 << 12;
 		*pc = *pc + 1;
 		APPEND_CODE(opcode);
+	}else if(strcmp(text[0],tokenStrings[OP_LEA]) == 0){ /* LEA opcode */
+		bool isImmediate = false;
+		if(!ParseSequence(tokenID,lineTokens,LEA_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER, KIND_LABEL)){
+			if(!ParseSequence(tokenID,lineTokens,LEA_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER, KIND_IMMEDIATE)){
+				ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1, text[0]);
+				return false;
+			}else isImmediate = true;
+		}
+		uint16_t PCoffset9 = GetPCoffset(text[2], *pc, isImmediate, line, PCOFFSET9_SIZE);
+		if(PCoffset9 > 255) return false;
+
+		opcode |= PCoffset9 & 0x01FF;
+		opcode |= GetRegCode(text[1]) << 9;
+		opcode |= 0xE << 12;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
 	}else if(strcmp(text[0],tokenStrings[OP_LD]) == 0 || strcmp(text[0],tokenStrings[OP_LDI]) == 0){ /*LD-LDI opcode */
 		bool isImmediate = false;
 		if(!ParseSequence(tokenID,lineTokens,LD_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER, KIND_LABEL)){
@@ -453,7 +473,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			}else isImmediate = true;
 		}
 		
-		int16_t PCoffset9  = GetPCoffset(text[2], *pc, isImmediate, line, 9);
+		int16_t PCoffset9  = GetPCoffset(text[2], *pc, isImmediate, line, PCOFFSET9_SIZE);
 
 		if(PCoffset9 > 255){
 			return false;
