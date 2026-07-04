@@ -26,7 +26,10 @@ fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file us
 #define NOT_OP_PARAMETERS    3
 #define RTI_OP_PARAMETERS    1
 #define ST_OP_PARAMETERS     3
+#define STR_OP_PARAMETERS    4
+#define TRAP_OP_PARAMETERS   2
 
+#define PCOFFSET6_SIZE       6
 #define PCOFFSET9_SIZE       9
 #define PCOFFSET11_SIZE     11
 
@@ -396,14 +399,44 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		opcode |= 0x8000;
 		*pc = *pc + 1;
 		APPEND_CODE(opcode);
+	}else if(strcmp(text[0],tokenStrings[OP_STR]) == 0){ /* STR opcode */
+		bool isImmediate = false;
+		if(!ParseSequence(tokenID,lineTokens,STR_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER, KIND_REGISTER,KIND_LABEL)){
+			if(!ParseSequence(tokenID,lineTokens,STR_OP_PARAMETERS,KIND_OPCODE,
+			KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
+				ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1, text[0]);
+				return false;
+			}isImmediate = true;
+		}
+		
+		int16_t PCoffset6 = GetPCoffset(text[3], *pc, isImmediate, line, PCOFFSET6_SIZE);
+
+		opcode |= 0x7 << 12;
+		opcode |= GetRegCode(text[1]) << 9;
+		opcode |= GetRegCode(text[2]) << 6;
+		opcode |= PCoffset6 & 0x3F;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
 	}else if(strcmp(text[0],tokenStrings[OP_RET]) == 0){ /* RET opcode */
 		if(!ParseSequence(tokenID,lineTokens,RET_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER)){
-			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
+			ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1, text[0]);
 			return false;
 		}
 
 		opcode |= 0x7 << 6;
 		opcode |= 0xC000;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
+	}else if(strcmp(text[0],tokenStrings[OP_TRAP]) == 0){ /* TRAP opcode */
+		if(!ParseSequence(tokenID,lineTokens,TRAP_OP_PARAMETERS,KIND_OPCODE,KIND_IMMEDIATE)){
+			ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1, text[0]);
+			return false;
+		}
+		
+		uint8_t trapvect8 = 0;
+		GET_NUM_AND_WARNING(text[1], trapvect8, line);
+		opcode |= 0xF << 12;
+		opcode |= trapvect8 & 0xFF;
 		*pc = *pc + 1;
 		APPEND_CODE(opcode);
 	}else if(strcmp(text[0],tokenStrings[OP_ST]) == 0 || strcmp(text[0],tokenStrings[OP_STI]) ==0){ /* ST-STI opcode */
