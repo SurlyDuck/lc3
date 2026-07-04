@@ -16,6 +16,7 @@ fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file us
 
 #define ADD_AND_PARAMETERS   4
 #define PSEUDO_OP_PARAMETERS 2
+#define SYSCALL_PARAMETERS   1
 #define BR_PARAMETERS        2
 #define JMP_OP_PARAMETERS    2 
 #define RET_OP_PARAMETERS    1
@@ -606,6 +607,26 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			*pc = *pc + 1;
 		}
 
+	}else if(strcmp(text[0],tokenStrings[GETC])  == 0  ||
+				strcmp(text[0],tokenStrings[OUT])   == 0  ||
+				strcmp(text[0],tokenStrings[PUTS])  == 0  ||
+				strcmp(text[0],tokenStrings[IN])    == 0  ||
+				strcmp(text[0],tokenStrings[PUTSP]) == 0  ||
+				strcmp(text[0],tokenStrings[HALT])  == 0){ /* TRAP ROUTINES - SYSTEM CALLS */
+		if(!ParseSequence(tokenID,lineTokens,SYSCALL_PARAMETERS,KIND_TRAP)){
+			ERROR_MESSAGE_LONG("Invalid parameter for trap routine",line+1, text[1]);
+			return false;
+		}
+
+		opcode |= 0xF << 12;
+		if(strcmp(text[0],tokenStrings[GETC]) == 0) opcode |= 0x20;
+		if(strcmp(text[0],tokenStrings[OUT]) == 0) opcode |= 0x21;
+		if(strcmp(text[0],tokenStrings[PUTS]) == 0) opcode |= 0x22;
+		if(strcmp(text[0],tokenStrings[IN]) == 0) opcode |= 0x23;
+		if(strcmp(text[0],tokenStrings[PUTSP]) == 0) opcode |= 0x24;
+		if(strcmp(text[0],tokenStrings[HALT]) == 0) opcode |= 0x25;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
 	}
 	return true;
 }
