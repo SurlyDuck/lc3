@@ -24,6 +24,8 @@ fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file us
 #define JSR_OP_PARAMETERS    2
 #define LEA_OP_PARAMETERS    3
 #define NOT_OP_PARAMETERS    3
+#define RTI_OP_PARAMETERS    1
+#define ST_OP_PARAMETERS     3
 
 #define PCOFFSET9_SIZE       9
 #define PCOFFSET11_SIZE     11
@@ -385,7 +387,15 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		opcode |= 0xC000;
 		*pc = *pc + 1;
 		APPEND_CODE(opcode);
+	}else if(strcmp(text[0],tokenStrings[OP_RTI]) == 0){ /* RTI opcode */
+		if(!ParseSequence(tokenID,lineTokens,RTI_OP_PARAMETERS,KIND_OPCODE)){
+			ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1, text[0]);
+			return false;
+		}
 
+		opcode |= 0x8000;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);
 	}else if(strcmp(text[0],tokenStrings[OP_RET]) == 0){ /* RET opcode */
 		if(!ParseSequence(tokenID,lineTokens,RET_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER)){
 			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
@@ -396,7 +406,22 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		opcode |= 0xC000;
 		*pc = *pc + 1;
 		APPEND_CODE(opcode);
+	}else if(strcmp(text[0],tokenStrings[OP_ST]) == 0 || strcmp(text[0],tokenStrings[OP_STI]) ==0){ /* ST-STI opcode */
+		bool isImmediate = false;
+		if(!ParseSequence(tokenID,lineTokens,ST_OP_PARAMETERS,KIND_OPCODE, KIND_REGISTER, KIND_LABEL)){
+			if(!ParseSequence(tokenID,lineTokens,ST_OP_PARAMETERS,KIND_OPCODE, KIND_REGISTER, KIND_IMMEDIATE)){
+				ERROR_MESSAGE_LONG("Invalid parameters for opcode",line+1, text[0]);
+				return false;
+			}else isImmediate = true;
+		}
 
+		uint16_t pcOffset9 = GetPCoffset(text[2], *pc, isImmediate, line, PCOFFSET9_SIZE);
+		opcode |= GetRegCode(text[1]) << 9;
+		opcode |= pcOffset9 & 0x01FF;
+		if(strcmp(text[0],tokenStrings[OP_ST]) == 0) opcode |= 0x3 << 12;
+		else opcode |= 0xB << 12;
+		*pc = *pc + 1;
+		APPEND_CODE(opcode);	
 	}else if(strcmp(text[0],tokenStrings[OP_LDR]) == 0){ /* LDR opcode */
 		bool isImmediate = true;
 		if(!ParseSequence(tokenID,lineTokens,LDR_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER,KIND_REGISTER,KIND_IMMEDIATE)){
