@@ -136,7 +136,29 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 					currentTokenText[i] = currentTokenText[i+1];
 				}
 				currentTokenText[currentTokenCursor] = '\0';
+
+				/* also detect escape codes */
+				int escaping = 0;
+				for(int i = 0; currentTokenText[i] != '\0'; ++i){
+					if(currentTokenText[i] == '\\') {escaping = 1; continue;}
+					if(escaping){
+						switch(currentTokenText[i]){
+							case 'n': currentTokenText[i] = '\n'; break;
+							case 't': currentTokenText[i] = '\t'; break;
+							case 'r': currentTokenText[i] = '\r'; break;
+							default: escaping = 0; break;
+						}
+							for(int j = i; currentTokenText[j] != '\0'; ++j){
+								currentTokenText[j-1] = currentTokenText[j];		
+							}
+							currentTokenText[currentTokenCursor-1] = '\0';
+							currentTokenCursor--; //bit of a hack
+							escaping = 0;
+					}
+				}
+
 				currentToken.kind = KIND_STRING;
+
 			}else if(IsStrImmediate(currentTokenText,0)){
 				currentToken.kind = KIND_IMMEDIATE;
 			}else if (IsStrImmediate(currentTokenText,1) == -1){

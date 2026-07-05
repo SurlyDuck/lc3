@@ -88,7 +88,7 @@ int main(int argc, char **argv){
 	}
 
 	if(outputFileName == NULL){
-		WARNING_MESSAGE("Output file name not given, choosing ´output.bin´");
+		WARNING_MESSAGE("Output file name not given, choosing ´output.obj´");
 		outputFileName = "output.obj";
 	}
 
@@ -561,7 +561,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
 			return false;
 		}
-
+		
 		for(int i = 0; text[1][i] != '\0'; ++i) {
 			APPEND_CODE(text[1][i]);
 			*pc = *pc + 1;
