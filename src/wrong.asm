@@ -1,11 +1,13 @@
 ;file to test assembler error handling
 .ORIG x3000
 
-AND R0 R0 #0
-LD  R0 HI_ADR
-TRAP x22
+BR WELCOME 
 
-HI_ADR: .FILL HI
-HI: .STRINGZ "a\ntest"
+WELCOME:
+     LEA R0 WELCOME_MESSAGE
+     PUTs    
+ 
+WELCOME_MESSAGE .STRINGZ "Welcome to LC3 Rogue.\nUse WSAD to move.\nPress any key..\n"
+
 
 .END

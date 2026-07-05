@@ -56,7 +56,7 @@ uint16_t memory[1<<16] = {0};
 
 int OpenFile(char *filePath);
 int GetRegCode(char *txt);
-uint16_t GetPCoffset(char *label, size_t pc, bool isImmediate, size_t line, uint8_t size);
+int16_t GetPCoffset(char *label, size_t pc, bool isImmediate, size_t line, uint8_t size);
 uint16_t GetSymbolAddress(char *symbol);
 bool ParseTokens(void);
 bool FillSymbolTable(uint16_t entryPoint);
@@ -449,7 +449,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			}else isImmediate = true;
 		}
 
-		uint16_t pcOffset9 = GetPCoffset(text[2], *pc, isImmediate, line, PCOFFSET9_SIZE);
+		int16_t pcOffset9 = GetPCoffset(text[2], *pc, isImmediate, line, PCOFFSET9_SIZE);
 		opcode |= GetRegCode(text[1]) << 9;
 		opcode |= pcOffset9 & 0x01FF;
 		if(strcmp(text[0],tokenStrings[OP_ST]) == 0) opcode |= 0x3 << 12;
@@ -503,7 +503,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			}else isImmediate = true;
 		}
 		
-		uint16_t pcOffset11 = GetPCoffset(text[1], *pc, isImmediate, line, PCOFFSET11_SIZE);
+		int16_t pcOffset11 = GetPCoffset(text[1], *pc, isImmediate, line, PCOFFSET11_SIZE);
 		opcode |= pcOffset11 & 0x7FFF;
 		opcode |= 9 << 11;
 		*pc = *pc + 1;
@@ -527,7 +527,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 				return false;
 			}else isImmediate = true;
 		}
-		uint16_t PCoffset9 = GetPCoffset(text[2], *pc, isImmediate, line, PCOFFSET9_SIZE);
+		int16_t PCoffset9 = GetPCoffset(text[2], *pc, isImmediate, line, PCOFFSET9_SIZE);
 		if(PCoffset9 > 255) return false;
 
 		opcode |= PCoffset9 & 0x01FF;
@@ -667,7 +667,7 @@ uint16_t GetSymbolAddress(char *symbol){
 	return adr;
 }
 
-uint16_t GetPCoffset(char *label, size_t pc, bool isImmediate, size_t line, uint8_t size){
+int16_t GetPCoffset(char *label, size_t pc, bool isImmediate, size_t line, uint8_t size){
 	int16_t pcOffset  = 0;
 	if(!isImmediate){
 		uint16_t labelAddr = 0;
