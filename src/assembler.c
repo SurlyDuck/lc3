@@ -11,7 +11,7 @@
 #define ERROR_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Error> %s at line %lu: <%s>\n",msg,line,val)
 #define WARNING_MESSAGE(msg) fprintf(stderr, "<Warning> %s\n", msg)	
 #define WARNING_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Warning> %s at line %lu: <%s>\n",msg,line,val)
-#define PRINT_USAGE fprintf(stdout,"\nUsage: ./assembler -f program.asm [OPTIONS: -hol]\n"); \
+#define PRINT_USAGE fprintf(stdout,"\nUsage: ./lcasm -f program.asm [OPTIONS: -hol]\n"); \
 fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file use little endianess\n")
 
 #define ADD_AND_PARAMETERS   4

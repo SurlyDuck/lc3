@@ -9,8 +9,8 @@ lc3: lc3.c
 	$(CC) $(CFLAGS) -o lc3 lc3.c
 
 assembler: assembler.c tokenizer.c tokenizer.h
-	$(CC) $(CFLAGS) -o assembler assembler.c tokenizer.c -lm
+	$(CC) $(CFLAGS) -o lcasm assembler.c tokenizer.c -lm
 
 clean:
-	rm ./lc3 ./assembler
+	rm ./lc3 ./lcasm
 
