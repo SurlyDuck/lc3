@@ -102,7 +102,7 @@ int main(int argc, char **argv){
 		return 1;
 	}
 	
-	for(size_t i = 0; i < allTokens->size; ++i){
+	for(size_t i = allTokens->size/*0*/; i < allTokens->size; ++i){
 		printf("Current Token at line %lu: %s",allTokens->items[i].line + 1, allTokens->items[i].text);
 		printf(" - Kind: ");
 		switch (allTokens->items[i].kind){
@@ -271,6 +271,10 @@ bool ParseTokens(){
 	size_t currentLine = allTokens->items[0].line;
 	for(size_t i = 2; i < allTokens->size-1; ++i){
 		if(allTokens->items[i].kind == KIND_LABEL) continue;
+		if(strcmp(allTokens->items[i].text, tokenStrings[END]) == 0){
+			WARNING_MESSAGE_LONG("Premature end of program",allTokens->items[i].line+1,allTokens->items[i].text);
+			break;
+		}	
 		if(allTokens->items[i].line == allTokens->items[0].line){
 			WARNING_MESSAGE_LONG("Ignoring token at entrypoint line",allTokens->items[i].line+1,allTokens->items[i].text);	
 			continue;

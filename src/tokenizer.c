@@ -110,7 +110,7 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 		if(b == '\n') ++currentLine;
 		if(b == ';') currentStatus = IGNORING;
 
-		if((currentStatus == IGNORING && b != '\n') || b == ',') {
+		if((currentStatus == IGNORING && b != '\n')) {
 			raw[cursor] = ' ';
 			continue;
 		}
@@ -125,7 +125,7 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 		}
 		else if(currentStatus != READING) continue;	
 		
-		if(currentStatus == READING && ((b != ' ' && b != '\t' && b != '"' && b != '\n') || (isString && b != '"'))){
+		if(currentStatus == READING && ((b != ' ' && b != '\t' && b != '"' && b != '\n' && b != ',') || (isString && b != '"'))){
 			currentTokenCursor++;
 			currentToken.text[currentTokenCursor] = b;
 		}else if(currentStatus == READING && ((b == ' ' || b == ',' || b == '\t' || b == '\n') || (isString && b == '"'))){
