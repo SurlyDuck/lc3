@@ -75,7 +75,7 @@ outputloop:       ; Now we can start printing results.
 halt              ; Else halt execution.
 
 msg0:   .stringz "Character Counter - Copyleft (c) Dennis Ideler.\n"
-msg1:   .stringz "Please enter a line of lower case text.\n"
+msg1:   .stringz "Please, enter a line of lower case text.\n"
 array:  .blkw 26      ; Array of size 26.
 neg97:  .fill #-97    ; Constant for converting from ASCII (97 is 'a').
 pos26:  .fill #26     ; Constant used for counter (26 letters in alphabet).

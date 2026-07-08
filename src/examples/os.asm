@@ -529,6 +529,7 @@ OS_START
     STI R0, OS_TMI
 
     ;; start running user code (clear Privilege bit w/ JMPT)
+	 ;; (lcasm) i don't have a jmpt instruction...
     LD R7, USER_CODE_ADDR
     JMP    R7
 
@@ -536,9 +537,9 @@ OS_KBSR .FILL xFE00     ; keyboard status register
 OS_KBDR .FILL xFE02     ; keyboard data register
 OS_DSR  .FILL xFE04     ; display status register
 OS_DDR  .FILL xFE06     ; display data register
-OS_TR   .FILL xFE08     ; timer register
-OS_TMI  .FILL xFE0A             ; timer interval register
-OS_MPR  .FILL xFE12     ; memory protection register
+OS_TR   .FILL xFE08     ; timer register (lcasm) not implemented
+OS_TMI  .FILL xFE0A     ; timer interval register (lcasm) not implemented
+OS_MPR  .FILL xFE12     ; memory protection register (lcasm) not implemented   
 OS_MCR  .FILL xFFFE     ; machine control register
 
 OS_SAVE_R0      .BLKW 1
