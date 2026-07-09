@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <signal.h>
@@ -47,7 +48,6 @@ enum {
 
 };
 
-
 uint16_t memory[MEM_ADDRESSES_NUM];
 uint16_t reg[REG_COUNT];
 struct termios oldTerminalMode;
@@ -58,6 +58,13 @@ void HandleTerminalInterrupt(){
 	exit(0);
 }
 
+void SetNewTerminalMode(){
+	/* stop input buffering and echo mode */
+	tcgetattr(STDIN_FILENO, &oldTerminalMode);
+	struct termios newTerminalMode = oldTerminalMode;
+	newTerminalMode.c_lflag &= ~(ECHO | ICANON);
+	tcsetattr(STDIN_FILENO, TCSANOW, &newTerminalMode); 
+}
 
 int main(int argc, char **argv){
 	if(argc < 2){
@@ -66,14 +73,12 @@ int main(int argc, char **argv){
 	}
 
 	signal(SIGINT, HandleTerminalInterrupt);
-	tcgetattr(STDIN_FILENO, &oldTerminalMode);
-	struct termios newTerminalMode;
-	newTerminalMode.c_lflag &= ~ECHO;
-	tcsetattr(STDIN_FILENO, TCSANOW, &newTerminalMode); 
 
 	while(1){
-		getc(stdin);
+		char c = getc(stdin);
+		printf("you typed: %c\n", c);
 	}
+
 	
 	
 	enum {PC_START = 0x3000};
