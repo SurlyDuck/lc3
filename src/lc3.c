@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <termios.h>
 #include <unistd.h>
+#include <poll.h>
 
 #define MEM_ADDRESSES_NUM (1<<16)
 
@@ -66,20 +67,40 @@ void SetNewTerminalMode(){
 	tcsetattr(STDIN_FILENO, TCSANOW, &newTerminalMode); 
 }
 
+struct pollfd fds[1];
+bool GetKeyPress(){
+	int timeout = 500;
+	fds[0].fd = STDIN_FILENO;
+	fds[0].events = POLLIN;
+	int ret = poll(fds,1,timeout);
+
+	if(ret > 0) return true;
+
+	return false;
+}
+
+bool OpenFile(const char *path){
+	
+
+	return true;
+}
+
 int main(int argc, char **argv){
 	if(argc < 2){
 		fprintf(stderr, "Usage: lc3 image.dat \n");
 		return 1;
 	}
-
 	signal(SIGINT, HandleTerminalInterrupt);
+	SetNewTerminalMode();
 
 	while(1){
-		char c = getc(stdin);
-		printf("you typed: %c\n", c);
-	}
+		if(GetKeyPress()) {
+			printf("le key has been pressed: %c\n", getc(stdin));
+		}
 
+		printf("nothing happened\n");
 	
+	}
 	
 	enum {PC_START = 0x3000};
 	reg[REG_PC] = PC_START;
