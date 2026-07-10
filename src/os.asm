@@ -517,7 +517,6 @@
     .FILL BAD_INT   ; xFE
     .FILL BAD_INT   ; xFF
 
-
 ;;; OS_START - operating system entry point (always starts at x0200)
 OS_START
     ;; start running user code
@@ -562,7 +561,6 @@ TRAP_OUT_WAIT
     STI R0,OS_DDR       ; write the character and return
     LD R1,OS_OUT_SAVE_R1    ; restore R1
     RET
-
                 
 ;;; PUTS - Write a NUL-terminated string of characters to the console,
 ;;; starting from the address in R0.    
@@ -601,7 +599,6 @@ TRAP_IN
     LD R0,OS_SAVE_R0    ; restore the character
     LD R7,OS_IN_SAVE_R7 ; restore R7
     RET                     ; this doesn't work, because
-
 
 ;;; PUTSP - Write a NUL-terminated string of characters, packed 2 per
 ;;; memory location, to the console, starting from the address in R0.

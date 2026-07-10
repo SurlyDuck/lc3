@@ -5,7 +5,7 @@ CC:= gcc
 
 all: lc3 lcasm
 
-lc3: lc3.c
+lc3: lc3.c os.h
 	$(CC) $(CFLAGS) -o lc3 lc3.c
 
 lcasm: assembler.c tokenizer.c tokenizer.h

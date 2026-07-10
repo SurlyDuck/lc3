@@ -1,11 +1,14 @@
 #include <stdlib.h>
-#include <stdbool.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <signal.h>
 #include <termios.h>
 #include <unistd.h>
 #include <poll.h>
+#include <errno.h>
+#include "os.h"
 
 #define MEM_ADDRESSES_NUM (1<<16)
 
@@ -46,12 +49,19 @@ enum {
 	FL_POS = 1 << 0, /* FLAG POSITIVE */
 	FL_ZRO = 1 << 1, /* FLAG ZERO     */
 	FL_NEG = 1 << 2  /* FLAG NEGATIVE */
-
 };
+
+typedef enum{
+	RUNNING = 0,
+	PAUSED,
+	HALTED
+}status;
 
 uint16_t memory[MEM_ADDRESSES_NUM];
 uint16_t reg[REG_COUNT];
 struct termios oldTerminalMode;
+status machineStatus = RUNNING;
+size_t pc;
 
 void HandleTerminalInterrupt(){
 	printf("terminal interrupted\n");
@@ -68,7 +78,7 @@ void SetNewTerminalMode(){
 }
 
 struct pollfd fds[1];
-bool GetKeyPress(){
+bool IsKeyPressed(){
 	int timeout = 500;
 	fds[0].fd = STDIN_FILENO;
 	fds[0].events = POLLIN;
@@ -79,31 +89,43 @@ bool GetKeyPress(){
 	return false;
 }
 
-bool OpenFile(const char *path){
-	
+void LoadOS(){
+	uint16_t memP = 0;
+	for(unsigned int i = 1; i < __bin_os_obj_len-2; i+=2){
+		memory[memP] = (uint16_t)(__bin_os_obj[i-1] << 8) | (__bin_os_obj[i]);
+		memP++;
+	}
+}
 
-	return true;
+bool LoadProgram(const char *path){
+	FILE *image = fopen(path, "rb");
+	if(image == NULL){
+		fprintf(stderr, "Couldn't open file: %s\n", strerror(errno));
+		return false;
+	}
+	
+	return false;
 }
 
 int main(int argc, char **argv){
 	if(argc < 2){
-		fprintf(stderr, "Usage: lc3 image.dat \n");
+		fprintf(stderr, "Usage: lc3 image.obj \n");
 		return 1;
 	}
+
+	LoadOS();
+	if(!LoadProgram(argv[1])){
+		fprintf(stderr, "Couldn't load program \"%s\" \n", argv[1]);
+		return 1;
+	}
+	return 0;
+
 	signal(SIGINT, HandleTerminalInterrupt);
 	SetNewTerminalMode();
-
-	while(1){
-		if(GetKeyPress()) {
-			char c;
-			while((c = getc(stdin)) != '\n'){
-				printf("le key has been pressed: %c\n", c);
-			}
-		}
-
-		printf("nothing happened\n");
-		sleep(2);
 	
+
+	while(machineStatus == RUNNING){
+		break;	
 	}
 	
 	enum {PC_START = 0x3000};
