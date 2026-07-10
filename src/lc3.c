@@ -95,10 +95,14 @@ int main(int argc, char **argv){
 
 	while(1){
 		if(GetKeyPress()) {
-			printf("le key has been pressed: %c\n", getc(stdin));
+			char c;
+			while((c = getc(stdin)) != '\n'){
+				printf("le key has been pressed: %c\n", c);
+			}
 		}
 
 		printf("nothing happened\n");
+		sleep(2);
 	
 	}
 	

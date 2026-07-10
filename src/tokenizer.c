@@ -13,7 +13,11 @@ char *tokenStrings[] =  {
 	"BR",		/* OP_BR, */
 	"BRN",
 	"BRZ",
-	"BRP",
+	"BRP", 
+	"BRZP",
+	"BRNP",
+	"BRNZ",
+	"BRNZP",
 	"JMP",	/* OP_JMP, */
 	"JSR",	/* OP_JSR, */
 	"JSRR",	/* OP_JSRR, */

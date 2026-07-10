@@ -1,4 +1,4 @@
-        .ORIG x0000
+.ORIG x0000
 
 ; the TRAP vector table
     .FILL BAD_TRAP  ; x00
@@ -260,7 +260,7 @@
 
 ; the interrupt vector table
 ; interrupts are not currently implemented
-        .FILL BAD_INT   ; x00
+    .FILL BAD_INT   ; x00
     .FILL BAD_INT   ; x01
     .FILL BAD_INT   ; x02
     .FILL BAD_INT   ; x03
@@ -520,16 +520,7 @@
 
 ;;; OS_START - operating system entry point (always starts at x0200)
 OS_START
-    ;; set MPR
-    LD R0, MPR_INIT
-    STI R0, OS_MPR
-
-    ;; set timer interval
-    LD R0, TIM_INIT
-    STI R0, OS_TMI
-
-    ;; start running user code (clear Privilege bit w/ JMPT)
-	 ;; (lcasm) i don't have a jmpt instruction...
+    ;; start running user code
     LD R7, USER_CODE_ADDR
     JMP    R7
 
@@ -537,9 +528,6 @@ OS_KBSR .FILL xFE00     ; keyboard status register
 OS_KBDR .FILL xFE02     ; keyboard data register
 OS_DSR  .FILL xFE04     ; display status register
 OS_DDR  .FILL xFE06     ; display data register
-OS_TR   .FILL xFE08     ; timer register (lcasm) not implemented
-OS_TMI  .FILL xFE0A     ; timer interval register (lcasm) not implemented
-OS_MPR  .FILL xFE12     ; memory protection register (lcasm) not implemented   
 OS_MCR  .FILL xFFFE     ; machine control register
 
 OS_SAVE_R0      .BLKW 1
@@ -555,11 +543,7 @@ OS_IN_SAVE_R7   .BLKW 1
                     
 MASK_HI         .FILL x7FFF
 LOW_8_BITS      .FILL x00FF
-TIM_INIT        .FILL #40
-MPR_INIT    .FILL xFFFF ; user can access everything
-;MPR_INIT   .FILL x0FF8 ; user can access x3000 to xbfff
 USER_CODE_ADDR  .FILL x3000 ; user code starts at x3000
-
         
 ;;; GETC - Read a single character of input from keyboard device into R0
 TRAP_GETC

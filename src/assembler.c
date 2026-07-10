@@ -364,7 +364,14 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 			return false;
 		}
 		
-	}else if(strcmp(text[0],tokenStrings[OP_BR]) == 0 || strcmp(text[0],tokenStrings[OP_BRn]) == 0 || strcmp(text[0],tokenStrings[OP_BRp]) == 0 ||  strcmp(text[0],tokenStrings[OP_BRz]) == 0){ /* BR BRn BRP opcode */
+	}else if(strcmp(text[0],tokenStrings[OP_BR])    == 0  || 
+				strcmp(text[0],tokenStrings[OP_BRn])   == 0  || 
+				strcmp(text[0],tokenStrings[OP_BRp])   == 0  ||  
+				strcmp(text[0],tokenStrings[OP_BRz])   == 0  ||
+				strcmp(text[0],tokenStrings[OP_BRzp])  == 0  ||
+				strcmp(text[0],tokenStrings[OP_BRnp])  == 0  ||
+				strcmp(text[0],tokenStrings[OP_BRnz])  == 0  ||
+				strcmp(text[0],tokenStrings[OP_BRnzp]) == 0){ /* BR opcode */
 		bool isImmediate = false;
 		if(!ParseSequence(tokenID,lineTokens,BR_PARAMETERS,KIND_OPCODE,KIND_LABEL)){
 			if(!ParseSequence(tokenID,lineTokens,BR_PARAMETERS,KIND_OPCODE,KIND_IMMEDIATE)){
@@ -377,14 +384,17 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		if(PCoffset9 > 255) return false;
 
 		opcode |= PCoffset9 & 0x01FF;
-		opcode |= ((strcmp(text[0], tokenStrings[OP_BR]) == 0) * 0x7) << 9;
-		opcode |= ((strcmp(text[0], tokenStrings[OP_BRn]) == 0) * 0x1) << 11;
-		opcode |= ((strcmp(text[0], tokenStrings[OP_BRp]) == 0) * 0x1) << 9;
-		opcode |= ((strcmp(text[0], tokenStrings[OP_BRz]) == 0) * 0x1) << 10;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BR])    == 0) * 0x7)  << 9;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BRn])   == 0) * 0x1)  << 11;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BRp])   == 0) * 0x1)  << 9;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BRz])   == 0) * 0x1)  << 10;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BRzp])  == 0) * 0x03) << 9;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BRnp])  == 0) * 0x05) << 9;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BRnz])  == 0) * 0x06) << 9;
+		opcode |= ((strcmp(text[0], tokenStrings[OP_BRnzp]) == 0) * 0x07) << 9;
 		
 		*pc = *pc + 1;
 		APPEND_CODE(opcode);
-
 	}else if(strcmp(text[0],tokenStrings[OP_JMP]) == 0){ /* JMP opcode */
 		if(!ParseSequence(tokenID,lineTokens,JMP_OP_PARAMETERS,KIND_OPCODE,KIND_REGISTER)){
 			ERROR_MESSAGE_LONG("Invalid parameters for pseudo-opcode",line+1, text[0]);
