@@ -63,9 +63,13 @@ struct termios oldTerminalMode;
 status machineStatus = RUNNING;
 size_t pc;
 
+void SetOldterminalMode(){
+	tcsetattr(STDIN_FILENO, TCSANOW, &oldTerminalMode); 
+}
+
 void HandleTerminalInterrupt(){
 	printf("terminal interrupted\n");
-	tcsetattr(STDIN_FILENO, TCSANOW, &oldTerminalMode); 
+	SetOldterminalMode();
 	exit(0);
 }
 
@@ -90,10 +94,12 @@ bool IsKeyPressed(){
 }
 
 void LoadOS(){
-	uint16_t memP = 0;
+	uint16_t memPtr = 0;
 	for(unsigned int i = 1; i < __bin_os_obj_len-2; i+=2){
-		memory[memP] = (uint16_t)(__bin_os_obj[i-1] << 8) | (__bin_os_obj[i]);
-		memP++;
+		uint16_t msb   = (uint16_t)(__bin_os_obj[i-1]);
+		uint16_t lsb   = (uint16_t)(__bin_os_obj[i]);
+		memory[memPtr] = (uint16_t)((lsb << 8) | msb);
+		memPtr++;
 	}
 }
 
@@ -104,7 +110,7 @@ bool LoadProgram(const char *path){
 		return false;
 	}
 	
-	return false;
+	return true;
 }
 
 int main(int argc, char **argv){
@@ -122,14 +128,12 @@ int main(int argc, char **argv){
 
 	signal(SIGINT, HandleTerminalInterrupt);
 	SetNewTerminalMode();
-	
 
 	while(machineStatus == RUNNING){
 		break;	
 	}
 	
-	enum {PC_START = 0x3000};
-	reg[REG_PC] = PC_START;
+	SetOldterminalMode();
 
 	return 0;
 }
