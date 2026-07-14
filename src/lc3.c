@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <poll.h>
 #include <errno.h>
+#include <assert.h>
 #include "os.h"
 
 #define MEM_ADDRESSES_NUM (1<<16)
@@ -103,6 +104,10 @@ void LoadOS(){
 	}
 }
 
+uint16_t ToLittleEndian(uint16_t val){
+	return (val << 8 | val >> 8);
+}
+
 bool LoadProgram(const char *path){
 	FILE *image = fopen(path, "rb");
 	if(image == NULL){
@@ -110,8 +115,22 @@ bool LoadProgram(const char *path){
 		return false;
 	}
 	
+	size_t res = fread(&pc, sizeof(uint16_t), 1, image);
+	assert(res > 0);
+	pc = ToLittleEndian(pc);
+
+	size_t maxRead = MEM_ADDRESSES_NUM - pc;
+	uint16_t *ptr = memory + pc;
+	res = fread(ptr, sizeof(uint16_t), maxRead, image);
+
+	while(res--> 0){
+		*ptr = ToLittleEndian(*ptr);
+		ptr++;
+	}
+	
 	return true;
 }
+
 
 int main(int argc, char **argv){
 	if(argc < 2){
@@ -124,12 +143,18 @@ int main(int argc, char **argv){
 		fprintf(stderr, "Couldn't load program \"%s\" \n", argv[1]);
 		return 1;
 	}
-	return 0;
 
 	signal(SIGINT, HandleTerminalInterrupt);
 	SetNewTerminalMode();
-
+	
 	while(machineStatus == RUNNING){
+		uint16_t opcode = memory[pc] >> 12;
+		switch(opcode){
+			case OP_ADD: printf("ADD\n"); break;
+			case OP_AND: printf("AND\n"); break;
+			default: break;	
+		}
+		
 		break;	
 	}
 	

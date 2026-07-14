@@ -1,15 +1,8 @@
 ;file to test assembler error handling
 .ORIG x3000
 
-BR TEST
-BRn TEST
-BRz TEST
-BRp TEST
-BRzp TEST
-BRnp TEST
-BRnz TEST
-BRnzp TEST
-LDI R0,TEST
+AND R0 R0 #0
+ADD R0 R0 #0
 
 TEST: .FILL x1
 
