@@ -11,6 +11,8 @@
 #include <assert.h>
 #include "os.h"
 
+#define IMM5 5
+
 #define MEM_ADDRESSES_NUM (1<<16)
 
 enum {
@@ -128,7 +130,34 @@ bool LoadProgram(const char *path){
 		ptr++;
 	}
 	
+	fclose(image);
+
 	return true;
+}
+
+int16_t SEXT(int16_t num, int MODE){
+	if(num >> (MODE - 1) & 1){
+		return num | (0xFFFF << MODE);
+	}
+
+	return num;
+}
+
+void ADD(uint16_t instr){
+	uint8_t DR  = instr >> 9 & 0x3;
+	uint8_t SR1 = instr >> 6 & 0x3;
+	
+	if(instr >> 5 & 1){
+		int16_t imm5 = SEXT(instr & 0x1F, IMM5);
+		reg[DR] = reg[SR1] + imm5;
+	}else{
+		uint8_t SR2 = instr & 0x3;
+		reg[DR] = reg[SR1] + reg[SR2];
+	}
+}
+
+void AND(uint16_t instr){
+
 }
 
 
@@ -150,12 +179,21 @@ int main(int argc, char **argv){
 	while(machineStatus == RUNNING){
 		uint16_t opcode = memory[pc] >> 12;
 		switch(opcode){
-			case OP_ADD: printf("ADD\n"); break;
-			case OP_AND: printf("AND\n"); break;
-			default: break;	
+			case OP_ADD: ADD(memory[pc]); break;
+			case OP_AND: AND(memory[pc]); break;
+			case OP_BR: break;
+			case OP_JMP: break;
+			case OP_JSR: break;
+			case OP_LD: break;
+			case OP_LDI: break;
+			case OP_LEA: break;
+			case OP_NOT: break;
+			case OP_RTI: break;
+			case OP_STI: break;
+			case OP_STR: break;
+			case OP_TRAP: break;
 		}
-		
-		break;	
+		pc++;
 	}
 	
 	SetOldterminalMode();
