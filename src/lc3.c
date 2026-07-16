@@ -12,7 +12,7 @@
 #include "os.h"
 
 #define IMM5 5
-
+#define PCOFFSET9 9 
 #define MEM_ADDRESSES_NUM (1<<16)
 
 enum {
@@ -48,7 +48,7 @@ enum {
 	OP_TRAP    /* execute trap */
 };
 
-enum {
+enum{
 	FL_POS = 1 << 0, /* FLAG POSITIVE */
 	FL_ZRO = 1 << 1, /* FLAG ZERO     */
 	FL_NEG = 1 << 2  /* FLAG NEGATIVE */
@@ -62,9 +62,9 @@ typedef enum{
 
 uint16_t memory[MEM_ADDRESSES_NUM];
 uint16_t reg[REG_COUNT];
+uint16_t pc;
 struct termios oldTerminalMode;
 status machineStatus = RUNNING;
-size_t pc;
 
 void SetOldterminalMode(){
 	tcsetattr(STDIN_FILENO, TCSANOW, &oldTerminalMode); 
@@ -135,7 +135,7 @@ bool LoadProgram(const char *path){
 	return true;
 }
 
-int16_t SEXT(int16_t num, int MODE){
+uint16_t SEXT(uint16_t num, int MODE){
 	if(num >> (MODE - 1) & 1){
 		return num | (0xFFFF << MODE);
 	}
@@ -143,23 +143,39 @@ int16_t SEXT(int16_t num, int MODE){
 	return num;
 }
 
-void ADD(uint16_t instr){
+void setcc(uint8_t DR){
+	if(reg[DR] >> 15 & 1){
+		reg[REG_COND] = FL_NEG;
+	}else if(reg[DR] == 0){
+		reg[REG_COND] = FL_ZRO;
+	}else{
+		reg[REG_COND] = FL_POS;
+	}
+}
+
+void ADD_AND(uint16_t instr){
 	uint8_t DR  = instr >> 9 & 0x3;
 	uint8_t SR1 = instr >> 6 & 0x3;
 	
 	if(instr >> 5 & 1){
-		int16_t imm5 = SEXT(instr & 0x1F, IMM5);
-		reg[DR] = reg[SR1] + imm5;
+		uint16_t imm5 = SEXT(instr & 0x1F, IMM5);
+		if(instr >> 12 == OP_ADD)reg[DR] = reg[SR1] + imm5;
+		else reg[DR] = reg[SR1] & imm5;
 	}else{
 		uint8_t SR2 = instr & 0x3;
-		reg[DR] = reg[SR1] + reg[SR2];
+		if(instr >> 12 == OP_ADD) reg[DR] = reg[SR1] + reg[SR2];
+		else reg[DR] = reg[SR1] * reg[SR2];
+	}
+	
+	setcc(DR);
+}
+
+void BR(uint16_t instr){
+	if(((instr >> 9) & 0x7) & reg[REG_COND]){
+		uint16_t pcoffset9 = instr & 0x1FF;
+		pc = pc + SEXT(pcoffset9, PCOFFSET9);
 	}
 }
-
-void AND(uint16_t instr){
-
-}
-
 
 int main(int argc, char **argv){
 	if(argc < 2){
@@ -179,9 +195,9 @@ int main(int argc, char **argv){
 	while(machineStatus == RUNNING){
 		uint16_t opcode = memory[pc] >> 12;
 		switch(opcode){
-			case OP_ADD: ADD(memory[pc]); break;
-			case OP_AND: AND(memory[pc]); break;
-			case OP_BR: break;
+			case OP_ADD: ADD_AND(memory[pc++]); break;
+			case OP_AND: ADD_AND(memory[pc++]); break;
+			case OP_BR:  BR(memory[pc++]);  break;
 			case OP_JMP: break;
 			case OP_JSR: break;
 			case OP_LD: break;
@@ -192,8 +208,8 @@ int main(int argc, char **argv){
 			case OP_STI: break;
 			case OP_STR: break;
 			case OP_TRAP: break;
+			default: pc++; break;
 		}
-		pc++;
 	}
 	
 	SetOldterminalMode();
