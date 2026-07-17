@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -9,6 +10,7 @@
 #include <poll.h>
 #include <errno.h>
 #include <assert.h>
+#include <ncurses.h>
 #include "os.h"
 
 #define IMM5 5
@@ -63,6 +65,7 @@ typedef enum{
 uint16_t memory[MEM_ADDRESSES_NUM];
 uint16_t reg[REG_COUNT];
 uint16_t pc;
+bool enableTUI;
 struct termios oldTerminalMode;
 status machineStatus = RUNNING;
 
@@ -177,28 +180,63 @@ void BR(uint16_t instr){
 	}
 }
 
+void JUMP(uint16_t instr){
+	uint8_t BaseR = instr >> 6 & 0x7;
+	pc = BaseR;
+}
+
+void InitCurses(){
+	initscr();
+	noecho();
+	raw();
+
+	refresh();
+}
+
 int main(int argc, char **argv){
 	if(argc < 2){
-		fprintf(stderr, "Usage: lc3 image.obj \n");
+help:
+		fprintf(stderr, "Usage: lc3 -i image.obj -OPTIONS[th]\n");
+		fprintf(stderr, "t --> enables TUI\n");
+		fprintf(stderr, "h --> prints this help messge\n");
 		return 1;
 	}
+	
+	const char *programPath = NULL;
+	char opt;
+	while((opt = getopt(argc, argv, "i:th")) != -1){
+		switch(opt){
+			case 'i': programPath = optarg; break;
+			case 't': enableTUI  = true; break;
+			case 'h': goto help;
+			default: goto help;
+		}
+	}
+
+	if(programPath == NULL) goto help;
 
 	LoadOS();
-	if(!LoadProgram(argv[1])){
+	if(!LoadProgram(programPath)){
 		fprintf(stderr, "Couldn't load program \"%s\" \n", argv[1]);
 		return 1;
 	}
-
-	signal(SIGINT, HandleTerminalInterrupt);
-	SetNewTerminalMode();
+	
+	if(!enableTUI){
+		signal(SIGINT, HandleTerminalInterrupt);
+		SetNewTerminalMode();
+	}else{
+		InitCurses();
+		getch();
+		endwin();
+	}
 	
 	while(machineStatus == RUNNING){
 		uint16_t opcode = memory[pc] >> 12;
 		switch(opcode){
-			case OP_ADD: ADD_AND(memory[pc++]); break;
-			case OP_AND: ADD_AND(memory[pc++]); break;
-			case OP_BR:  BR(memory[pc++]);  break;
-			case OP_JMP: break;
+			case OP_ADD: ADD_AND(memory[pc++]);  break;
+			case OP_AND: ADD_AND(memory[pc++]);  break;
+			case OP_BR:  BR(memory[pc++]);       break;
+			case OP_JMP: JUMP(memory[pc++]);     break;
 			case OP_JSR: break;
 			case OP_LD: break;
 			case OP_LDI: break;

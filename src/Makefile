@@ -1,6 +1,6 @@
 .PHONY: all clean run
 
-CFLAGS:= -ggdb -std=c11 -Wall -Wextra -pedantic
+CFLAGS:= -ggdb -std=c11 -Wall -Wextra -pedantic -lncurses
 CC:= gcc
 
 all: lc3 lcasm
