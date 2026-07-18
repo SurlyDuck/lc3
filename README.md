@@ -13,7 +13,9 @@ l --> little endian output
 
 ### Virtual machine usage
 ```
-[IN CONSTRUCTION]
+./lc3 -OPTIONS[dh] image.obj 
+d --> debugger mode
+h --> help message
 ```
 
 ### Building

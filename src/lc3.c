@@ -62,12 +62,18 @@ typedef enum{
 	HALTED
 }status;
 
+typedef enum{
+	NORMAL = 0,
+	DEBUGGER,
+	CLI
+}mode;
+
 uint16_t memory[MEM_ADDRESSES_NUM];
 uint16_t reg[REG_COUNT];
 uint16_t pc;
-bool enableTUI;
 struct termios oldTerminalMode;
 status machineStatus = RUNNING;
+mode currentMode = NORMAL;
 
 void SetOldterminalMode(){
 	tcsetattr(STDIN_FILENO, TCSANOW, &oldTerminalMode); 
@@ -185,35 +191,53 @@ void JUMP(uint16_t instr){
 	pc = BaseR;
 }
 
+/* ----------- Curses ----------- */
+int terminalColumns;
+int terminalRows;
 void InitCurses(){
 	initscr();
 	noecho();
 	raw();
 
+	getmaxyx(stdscr,terminalRows, terminalColumns);
+	assert(terminalRows > 20 && terminalColumns > 80 && "Terminal too small");
+
 	refresh();
+}
+
+WINDOW *CreateNewWindow(int rows, int cols, int y, int x){
+	WINDOW *win = newwin(rows,cols,y,x);
+	box(win, 0,0);
+	wrefresh(win);
+
+	return win;
+}
+
+void DrawMainWindow(){
+
 }
 
 int main(int argc, char **argv){
 	if(argc < 2){
 help:
-		fprintf(stderr, "Usage: lc3 -i image.obj -OPTIONS[th]\n");
-		fprintf(stderr, "t --> enables TUI\n");
-		fprintf(stderr, "h --> prints this help messge\n");
+		fprintf(stderr, "Usage: ./lc3 -OPTIONS[dh] image.obj \n");
+		fprintf(stderr, "d --> debugger mode \n");
+		fprintf(stderr, "h --> prints this help message\n");
 		return 1;
 	}
 	
-	const char *programPath = NULL;
 	char opt;
-	while((opt = getopt(argc, argv, "i:th")) != -1){
+	int cargc = 1;
+	while((opt = getopt(argc, argv, "dh")) != -1){
 		switch(opt){
-			case 'i': programPath = optarg; break;
-			case 't': enableTUI  = true; break;
+			case 'd': currentMode = DEBUGGER; cargc++; break;
 			case 'h': goto help;
-			default: goto help;
+			default: break;
 		}
 	}
-
-	if(programPath == NULL) goto help;
+	
+	if(cargc > argc-1) goto help;
+	const char *programPath = argv[cargc];
 
 	LoadOS();
 	if(!LoadProgram(programPath)){
@@ -221,13 +245,25 @@ help:
 		return 1;
 	}
 	
-	if(!enableTUI){
+	WINDOW *mainWindow;
+	WINDOW *registerWindow;
+	WINDOW *infoWindow;
+	WINDOW *outputWindow;
+	WINDOW *inputWindow;
+	if(currentMode == NORMAL){
 		signal(SIGINT, HandleTerminalInterrupt);
 		SetNewTerminalMode();
-	}else{
+	}else if(currentMode == DEBUGGER){
 		InitCurses();
+		mainWindow = CreateNewWindow(terminalRows/1.3,terminalColumns/2,0,0);
+		registerWindow = CreateNewWindow(terminalRows/3,terminalColumns/2,0,terminalColumns/2);
+		outputWindow = CreateNewWindow(terminalRows - terminalRows/1.3,terminalColumns/2,terminalRows/1.3,0);
+		inputWindow = CreateNewWindow(terminalRows - terminalRows/1.3,terminalColumns/2,terminalRows/1.3,terminalColumns/2);
+		infoWindow = CreateNewWindow((terminalRows/1.3)-terminalRows/3,terminalColumns/2,terminalRows/3,terminalColumns/2);
 		getch();
 		endwin();
+	}else{
+		/* TODO: CLI */
 	}
 	
 	while(machineStatus == RUNNING){
