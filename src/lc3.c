@@ -220,7 +220,7 @@ void DrawMainWindow(){
 int main(int argc, char **argv){
 	if(argc < 2){
 help:
-		fprintf(stderr, "Usage: ./lc3 -OPTIONS[dh] image.obj \n");
+		fprintf(stderr, "Usage: ./lc3 OPTIONS[-dh] image.obj \n");
 		fprintf(stderr, "d --> debugger mode \n");
 		fprintf(stderr, "h --> prints this help message\n");
 		return 1;
