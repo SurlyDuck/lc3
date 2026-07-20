@@ -70,7 +70,6 @@ typedef enum{
 
 uint16_t memory[MEM_ADDRESSES_NUM];
 uint16_t reg[REG_COUNT];
-uint16_t pc;
 struct termios oldTerminalMode;
 status machineStatus = RUNNING;
 mode currentMode = NORMAL;
@@ -126,12 +125,12 @@ bool LoadProgram(const char *path){
 		return false;
 	}
 	
-	size_t res = fread(&pc, sizeof(uint16_t), 1, image);
+	size_t res = fread(&reg[REG_PC], sizeof(uint16_t), 1, image);
 	assert(res > 0);
-	pc = ToLittleEndian(pc);
+	reg[REG_PC] = ToLittleEndian(reg[REG_PC]);
 
-	size_t maxRead = MEM_ADDRESSES_NUM - pc;
-	uint16_t *ptr = memory + pc;
+	size_t maxRead = MEM_ADDRESSES_NUM - reg[REG_PC];
+	uint16_t *ptr = memory + reg[REG_PC];
 	res = fread(ptr, sizeof(uint16_t), maxRead, image);
 
 	while(res--> 0){
@@ -182,18 +181,23 @@ void ADD_AND(uint16_t instr){
 void BR(uint16_t instr){
 	if(((instr >> 9) & 0x7) & reg[REG_COND]){
 		uint16_t pcoffset9 = instr & 0x1FF;
-		pc = pc + SEXT(pcoffset9, PCOFFSET9);
+		reg[REG_PC] = reg[REG_PC] + SEXT(pcoffset9, PCOFFSET9);
 	}
 }
 
 void JUMP(uint16_t instr){
 	uint8_t BaseR = instr >> 6 & 0x7;
-	pc = BaseR;
+	reg[REG_PC] = BaseR;
 }
 
 /* ----------- Curses ----------- */
 int terminalColumns;
 int terminalRows;
+WINDOW *mainWindow;
+WINDOW *registerWindow;
+WINDOW *infoWindow;
+WINDOW *outputWindow;
+WINDOW *inputWindow;
 void InitCurses(){
 	initscr();
 	noecho();
@@ -212,9 +216,47 @@ WINDOW *CreateNewWindow(int rows, int cols, int y, int x){
 
 	return win;
 }
-
 void DrawMainWindow(){
 
+
+}
+
+void DrawRegisterWindow(){
+	int rows = 0;
+	int cols = 0;
+	getmaxyx(registerWindow, rows,cols);
+	mvwprintw(registerWindow, 0, cols/2-4, "Registers");
+
+	int x = 1, y = 1;
+	wmove(registerWindow, y,x);
+	for (int i = 0; i < REG_COUNT; ++i){
+		char *val = "REG%d: 0x%04X ";
+		char *cond  = "COND: 0x%04X ";
+		char *pc = "PC  : 0x%04X ";
+		if(i == 8) wprintw(registerWindow, cond,reg[i]);
+		else if(i == 9) wprintw(registerWindow, pc,reg[i]);
+		else wprintw(registerWindow, val,i,reg[i]);
+		getyx(registerWindow,y,x);
+		if((x + strlen(val))  > cols){
+			x = 1;
+			y = y+1;
+			wmove(registerWindow, y,x);
+		}
+
+	}
+
+	wrefresh(registerWindow);
+}
+
+void CreateAllWindows(){
+	mainWindow = CreateNewWindow(terminalRows/1.3,terminalColumns/2,0,0);
+	registerWindow = CreateNewWindow(terminalRows/3,terminalColumns/2,0,terminalColumns/2);
+	outputWindow = CreateNewWindow(terminalRows - terminalRows/1.3,terminalColumns/2,terminalRows/1.3,0);
+	inputWindow = CreateNewWindow(terminalRows - terminalRows/1.3,terminalColumns/2,terminalRows/1.3,terminalColumns/2);
+	infoWindow = CreateNewWindow((terminalRows/1.3)-terminalRows/3,terminalColumns/2,terminalRows/3,terminalColumns/2);
+
+	DrawRegisterWindow();
+	DrawMainWindow();
 }
 
 int main(int argc, char **argv){
@@ -245,21 +287,12 @@ help:
 		return 1;
 	}
 	
-	WINDOW *mainWindow;
-	WINDOW *registerWindow;
-	WINDOW *infoWindow;
-	WINDOW *outputWindow;
-	WINDOW *inputWindow;
 	if(currentMode == NORMAL){
 		signal(SIGINT, HandleTerminalInterrupt);
 		SetNewTerminalMode();
 	}else if(currentMode == DEBUGGER){
 		InitCurses();
-		mainWindow = CreateNewWindow(terminalRows/1.3,terminalColumns/2,0,0);
-		registerWindow = CreateNewWindow(terminalRows/3,terminalColumns/2,0,terminalColumns/2);
-		outputWindow = CreateNewWindow(terminalRows - terminalRows/1.3,terminalColumns/2,terminalRows/1.3,0);
-		inputWindow = CreateNewWindow(terminalRows - terminalRows/1.3,terminalColumns/2,terminalRows/1.3,terminalColumns/2);
-		infoWindow = CreateNewWindow((terminalRows/1.3)-terminalRows/3,terminalColumns/2,terminalRows/3,terminalColumns/2);
+		CreateAllWindows();
 		getch();
 		endwin();
 	}else{
@@ -267,12 +300,12 @@ help:
 	}
 	
 	while(machineStatus == RUNNING){
-		uint16_t opcode = memory[pc] >> 12;
+		uint16_t opcode = memory[reg[REG_PC]] >> 12;
 		switch(opcode){
-			case OP_ADD: ADD_AND(memory[pc++]);  break;
-			case OP_AND: ADD_AND(memory[pc++]);  break;
-			case OP_BR:  BR(memory[pc++]);       break;
-			case OP_JMP: JUMP(memory[pc++]);     break;
+			case OP_ADD: ADD_AND(memory[reg[REG_PC]]++);  break;
+			case OP_AND: ADD_AND(memory[reg[REG_PC]]++);  break;
+			case OP_BR:  BR(memory[reg[REG_PC]]++);       break;
+			case OP_JMP: JUMP(memory[reg[REG_PC]]++);     break;
 			case OP_JSR: break;
 			case OP_LD: break;
 			case OP_LDI: break;
@@ -282,7 +315,7 @@ help:
 			case OP_STI: break;
 			case OP_STR: break;
 			case OP_TRAP: break;
-			default: pc++; break;
+			default: reg[REG_PC]++; break;
 		}
 	}
 	
