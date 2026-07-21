@@ -63,16 +63,16 @@ typedef enum{
 }status;
 
 typedef enum{
-	NORMAL = 0,
+	CLI = 0,
 	DEBUGGER,
-	CLI
+	EMBEDDED
 }mode;
 
 uint16_t memory[MEM_ADDRESSES_NUM];
 uint16_t reg[REG_COUNT];
 struct termios oldTerminalMode;
 status machineStatus = RUNNING;
-mode currentMode = NORMAL;
+mode currentMode = CLI;
 
 void SetOldterminalMode(){
 	tcsetattr(STDIN_FILENO, TCSANOW, &oldTerminalMode); 
@@ -216,15 +216,37 @@ WINDOW *CreateNewWindow(int rows, int cols, int y, int x){
 
 	return win;
 }
-void DrawMainWindow(){
 
+#define INSTRUCTION_TEXT_LEN 16
+void disassemble(char dest[], uint16_t instruction){
 
 }
 
-void DrawRegisterWindow(){
-	int rows = 0;
+void DrawMainWindow(){
 	int cols = 0;
-	getmaxyx(registerWindow, rows,cols);
+	int rows = 0;
+	getmaxyx(mainWindow, rows ,cols);
+	werase(mainWindow);
+	box(mainWindow,0,0);
+	
+	if(machineStatus == RUNNING){
+		mvwprintw(mainWindow, rows-rows, cols/2-3, "RUNNING");
+	}else if(machineStatus == HALTED){
+		mvwprintw(mainWindow, rows-rows, cols/2-3, "HALTED");
+	}else mvwprintw(mainWindow, rows-rows, cols/2-3, "PAUSED");
+	
+	for(int i = 0; i < rows-2; ++i){
+		mvwprintw(mainWindow, i+1, 1, "0x%04X", memory[reg[REG_PC] + i]);
+		char instr[INSTRUCTION_TEXT_LEN] = {0};
+		disassemble(instr, memory[reg[REG_PC] + i]);
+	}
+
+	wrefresh(mainWindow);
+}
+
+void DrawRegisterWindow(){
+	int cols = 0;
+	getmaxyx(registerWindow, cols,cols);
 	mvwprintw(registerWindow, 0, cols/2-4, "Registers");
 
 	int x = 1, y = 1;
@@ -237,7 +259,7 @@ void DrawRegisterWindow(){
 		else if(i == 9) wprintw(registerWindow, pc,reg[i]);
 		else wprintw(registerWindow, val,i,reg[i]);
 		getyx(registerWindow,y,x);
-		if((x + strlen(val))  > cols){
+		if((int)(x + strlen(val))  > cols){
 			x = 1;
 			y = y+1;
 			wmove(registerWindow, y,x);
@@ -287,16 +309,17 @@ help:
 		return 1;
 	}
 	
-	if(currentMode == NORMAL){
+	if(currentMode == CLI){
 		signal(SIGINT, HandleTerminalInterrupt);
 		SetNewTerminalMode();
 	}else if(currentMode == DEBUGGER){
+		machineStatus = PAUSED;
 		InitCurses();
 		CreateAllWindows();
 		getch();
 		endwin();
 	}else{
-		/* TODO: CLI */
+		/* TODO: EMBEDDED */
 	}
 	
 	while(machineStatus == RUNNING){
@@ -319,7 +342,7 @@ help:
 		}
 	}
 	
-	SetOldterminalMode();
+	if(currentMode == CLI) SetOldterminalMode();
 
 	return 0;
 }
