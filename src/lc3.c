@@ -235,8 +235,11 @@ void DrawMainWindow(){
 		mvwprintw(mainWindow, rows-rows, cols/2-3, "HALTED");
 	}else mvwprintw(mainWindow, rows-rows, cols/2-3, "PAUSED");
 	
-	for(int i = 0; i < rows-2; ++i){
-		mvwprintw(mainWindow, i+1, 1, "0x%04X", memory[reg[REG_PC] + i]);
+	mvwprintw(mainWindow, 1, 1, "HEX");
+	mvwprintw(mainWindow, 1, 10, "ADR");
+	for(int i = 0; i < rows-3; ++i){
+		mvwprintw(mainWindow, i+2, 1, "0x%04X", memory[reg[REG_PC] + i]);
+		mvwprintw(mainWindow, i+2, 10, "0x%04X", reg[REG_PC] + i);
 		char instr[INSTRUCTION_TEXT_LEN] = {0};
 		disassemble(instr, memory[reg[REG_PC] + i]);
 	}
