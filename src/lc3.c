@@ -161,6 +161,7 @@ void setcc(uint8_t DR){
 	}
 }
 
+/* ----------- Instructions ----------- */
 void ADD_AND(uint16_t instr){
 	uint8_t DR  = instr >> 9 & 0x3;
 	uint8_t SR1 = instr >> 6 & 0x3;
@@ -190,6 +191,79 @@ void JUMP(uint16_t instr){
 	reg[REG_PC] = BaseR;
 }
 
+
+
+/* ----------- Disassembler ----------- */
+#define INSTRUCTION_TEXT_LEN 32
+const char *GetRegisterText(uint16_t reg){
+	switch(reg){
+		case 0: return "REG0 ";
+		case 1: return "REG1 ";
+		case 2: return "REG2 ";
+		case 3: return "REG3 ";
+		case 4: return "REG4 ";
+		case 5: return "REG5 ";
+		case 6: return "REG6 ";
+		case 7: return "REG7 ";
+	}
+	
+	return "INVALID";
+}
+
+void disassemble(char dest[], uint16_t instruction){
+	uint16_t opcode = instruction >> 12;
+	switch(opcode){
+		case OP_ADD: {
+			strcat(dest, "ADD ");
+			strcat(dest,GetRegisterText(instruction >> 9 & 0x7));
+			strcat(dest,GetRegisterText(instruction >> 6 & 0x7));
+			if(instruction >> 5 & 1){
+				char buffer[8] = {0};
+				int16_t num = instruction & 0x1F;
+				if(instruction & 0x10) num |= 0xFFE0;
+				sprintf(buffer, "0x%04X", (uint16_t) num);
+				strcat(dest, buffer);
+				sprintf(buffer, " (#%d)",num);
+				strcat(dest, buffer);
+			}else{
+				strcat(dest,GetRegisterText(instruction & 0x7));
+			}
+			
+			break;
+		}
+		case OP_AND: {
+			strcat(dest, "AND ");
+			strcat(dest,GetRegisterText(instruction >> 9 & 0x7));
+			strcat(dest,GetRegisterText(instruction >> 6 & 0x7));
+			if(instruction >> 5 & 1){
+				char buffer[8] = {0};
+				int16_t num = instruction & 0x1F;
+				if(instruction & 0x10) num |= 0xFFE0;
+				sprintf(buffer, "0x%04X", (uint16_t) num);
+				strcat(dest, buffer);
+				sprintf(buffer, " (#%d)",num);
+				strcat(dest, buffer);
+			}else{
+				strcat(dest,GetRegisterText(instruction & 0x7));
+			}
+			
+			break;
+		} 
+		case OP_BR:  strcat(dest, "BR");;
+		case OP_JMP: break;
+		case OP_JSR: break;
+		case OP_LD:  break;
+		case OP_LDI: break;
+		case OP_LEA: break;
+		case OP_NOT: break;
+		case OP_RTI: break;
+		case OP_STI: break;
+		case OP_STR: break;
+		case OP_TRAP: break;
+		default: strcat(dest,".FILL"); break; 
+	}
+}
+
 /* ----------- Curses ----------- */
 int terminalColumns;
 int terminalRows;
@@ -217,11 +291,6 @@ WINDOW *CreateNewWindow(int rows, int cols, int y, int x){
 	return win;
 }
 
-#define INSTRUCTION_TEXT_LEN 16
-void disassemble(char dest[], uint16_t instruction){
-
-}
-
 void DrawMainWindow(){
 	int cols = 0;
 	int rows = 0;
@@ -235,13 +304,17 @@ void DrawMainWindow(){
 		mvwprintw(mainWindow, rows-rows, cols/2-3, "HALTED");
 	}else mvwprintw(mainWindow, rows-rows, cols/2-3, "PAUSED");
 	
-	mvwprintw(mainWindow, 1, 1, "HEX");
-	mvwprintw(mainWindow, 1, 10, "ADR");
+	mvwprintw(mainWindow, 1, 10, "HEX");
+	mvwprintw(mainWindow, 1, 1, "ADR");
+	mvwprintw(mainWindow, 1, 19, "INSTR");
+	char instr[INSTRUCTION_TEXT_LEN] = {0};
 	for(int i = 0; i < rows-3; ++i){
-		mvwprintw(mainWindow, i+2, 1, "0x%04X", memory[reg[REG_PC] + i]);
-		mvwprintw(mainWindow, i+2, 10, "0x%04X", reg[REG_PC] + i);
-		char instr[INSTRUCTION_TEXT_LEN] = {0};
+		mvwprintw(mainWindow, i+2, 1, "0x%04X", reg[REG_PC] + i);
+		mvwprintw(mainWindow, i+2, 10, "0x%04X", memory[reg[REG_PC] + i]);
+
 		disassemble(instr, memory[reg[REG_PC] + i]);
+		mvwprintw(mainWindow, i+2, 19, "%s",instr);
+		memset(instr, '\0', INSTRUCTION_TEXT_LEN);
 	}
 
 	wrefresh(mainWindow);
