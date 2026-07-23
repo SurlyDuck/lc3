@@ -197,20 +197,21 @@ void JUMP(uint16_t instr){
 #define INSTRUCTION_TEXT_LEN 32
 const char *GetRegisterText(uint16_t reg){
 	switch(reg){
-		case 0: return "REG0 ";
-		case 1: return "REG1 ";
-		case 2: return "REG2 ";
-		case 3: return "REG3 ";
-		case 4: return "REG4 ";
-		case 5: return "REG5 ";
-		case 6: return "REG6 ";
-		case 7: return "REG7 ";
+		case 0: return "R0 ";
+		case 1: return "R1 ";
+		case 2: return "R2 ";
+		case 3: return "R3 ";
+		case 4: return "R4 ";
+		case 5: return "R5 ";
+		case 6: return "R6 ";
+		case 7: return "R7 ";
 	}
 	
 	return "INVALID";
 }
 
-void disassemble(char dest[], uint16_t instruction){
+#define SPACE strcat(dest, " ")
+void disassemble(char dest[], uint16_t instruction, size_t pc){
 	uint16_t opcode = instruction >> 12;
 	switch(opcode){
 		case OP_ADD: {
@@ -230,8 +231,7 @@ void disassemble(char dest[], uint16_t instruction){
 			}
 			
 			break;
-		}
-		case OP_AND: {
+		}case OP_AND: {
 			strcat(dest, "AND ");
 			strcat(dest,GetRegisterText(instruction >> 9 & 0x7));
 			strcat(dest,GetRegisterText(instruction >> 6 & 0x7));
@@ -248,10 +248,31 @@ void disassemble(char dest[], uint16_t instruction){
 			}
 			
 			break;
-		} 
-		case OP_BR:  strcat(dest, "BR");;
-		case OP_JMP: break;
-		case OP_JSR: break;
+		}case OP_BR:{
+			strcat(dest, "BR");
+			if(instruction >> 11 & 1) strcat(dest, "n");
+			if(instruction >> 10 & 1) strcat(dest, "z");
+			if(instruction >> 9 & 1) strcat(dest, "p");
+			
+			char buffer[8] = {0};
+			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
+			sprintf(buffer, "0x%04X", adr);
+			SPACE;
+			strcat(dest, buffer);
+			break;
+		}case OP_JMP: {
+			strcat(dest, "JMP ");
+			strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
+			break;
+		}case OP_JSR: {
+			if(instruction >> 11 & 1){
+				strcat(dest, "JSR");
+			}else{
+				strcat(dest, "JSRR");
+			}		
+
+			break;
+		}
 		case OP_LD:  break;
 		case OP_LDI: break;
 		case OP_LEA: break;
@@ -312,7 +333,7 @@ void DrawMainWindow(){
 		mvwprintw(mainWindow, i+2, 1, "0x%04X", reg[REG_PC] + i);
 		mvwprintw(mainWindow, i+2, 10, "0x%04X", memory[reg[REG_PC] + i]);
 
-		disassemble(instr, memory[reg[REG_PC] + i]);
+		disassemble(instr, memory[reg[REG_PC] + i], reg[REG_PC] + i);
 		mvwprintw(mainWindow, i+2, 19, "%s",instr);
 		memset(instr, '\0', INSTRUCTION_TEXT_LEN);
 	}

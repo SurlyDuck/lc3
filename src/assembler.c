@@ -518,7 +518,7 @@ bool ParseLineCode(size_t tokenID, uint16_t *pc, uint16_t *bufrCode, size_t line
 		}
 		
 		int16_t pcOffset11 = GetPCoffset(text[1], *pc, isImmediate, line, PCOFFSET11_SIZE);
-		opcode |= pcOffset11 & 0x7FFF;
+		opcode |= pcOffset11 & 0x7FF;
 		opcode |= 9 << 11;
 		*pc = *pc + 1;
 		APPEND_CODE(opcode);
