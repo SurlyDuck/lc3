@@ -13,8 +13,9 @@
 #include <ncurses.h>
 #include "os.h"
 
-#define IMM5 5
-#define PCOFFSET9 9 
+#define IMM5        5
+#define PCOFFSET9   9 
+#define PCOFFSET11 11
 #define MEM_ADDRESSES_NUM (1<<16)
 
 enum {
@@ -213,13 +214,14 @@ const char *GetRegisterText(uint16_t reg){
 #define SPACE strcat(dest, " ")
 void disassemble(char dest[], uint16_t instruction, size_t pc){
 	uint16_t opcode = instruction >> 12;
+	char buffer[8] = {0};
+	/* TODO: fix repetitions */
 	switch(opcode){
 		case OP_ADD: {
 			strcat(dest, "ADD ");
 			strcat(dest,GetRegisterText(instruction >> 9 & 0x7));
 			strcat(dest,GetRegisterText(instruction >> 6 & 0x7));
 			if(instruction >> 5 & 1){
-				char buffer[8] = {0};
 				int16_t num = instruction & 0x1F;
 				if(instruction & 0x10) num |= 0xFFE0;
 				sprintf(buffer, "0x%04X", (uint16_t) num);
@@ -229,14 +231,12 @@ void disassemble(char dest[], uint16_t instruction, size_t pc){
 			}else{
 				strcat(dest,GetRegisterText(instruction & 0x7));
 			}
-			
 			break;
 		}case OP_AND: {
 			strcat(dest, "AND ");
 			strcat(dest,GetRegisterText(instruction >> 9 & 0x7));
 			strcat(dest,GetRegisterText(instruction >> 6 & 0x7));
 			if(instruction >> 5 & 1){
-				char buffer[8] = {0};
 				int16_t num = instruction & 0x1F;
 				if(instruction & 0x10) num |= 0xFFE0;
 				sprintf(buffer, "0x%04X", (uint16_t) num);
@@ -246,7 +246,6 @@ void disassemble(char dest[], uint16_t instruction, size_t pc){
 			}else{
 				strcat(dest,GetRegisterText(instruction & 0x7));
 			}
-			
 			break;
 		}case OP_BR:{
 			strcat(dest, "BR");
@@ -254,7 +253,6 @@ void disassemble(char dest[], uint16_t instruction, size_t pc){
 			if(instruction >> 10 & 1) strcat(dest, "z");
 			if(instruction >> 9 & 1) strcat(dest, "p");
 			
-			char buffer[8] = {0};
 			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
 			sprintf(buffer, "0x%04X", adr);
 			SPACE;
@@ -266,19 +264,52 @@ void disassemble(char dest[], uint16_t instruction, size_t pc){
 			break;
 		}case OP_JSR: {
 			if(instruction >> 11 & 1){
-				strcat(dest, "JSR");
+				strcat(dest, "JSR ");
+				int16_t adr = SEXT(instruction & 0x07FF, PCOFFSET11) + pc + 1;
+				sprintf(buffer, "0x%04X", adr);
+				strcat(dest, buffer);
 			}else{
-				strcat(dest, "JSRR");
+				strcat(dest, "JSRR ");
+				strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
 			}		
-
+			break;
+		}case OP_LD:{
+			strcat(dest, "LD ");
+			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
+			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
+			sprintf(buffer, "0x%04X", adr);
+			strcat(dest, buffer);
+			break;
+		}case OP_LDI: {
+			strcat(dest, "LDI ");
+			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
+			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
+			sprintf(buffer, "0x%04X", adr);
+			strcat(dest, buffer);
+			break;
+		}case OP_LEA:{
+			strcat(dest, "LEA ");
+			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
+			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
+			sprintf(buffer, "0x%04X", adr);
+			strcat(dest, buffer);
+			break;
+		}case OP_NOT:{
+			strcat(dest, "NOT ");
+			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
+			strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
+			break;
+		}case OP_RTI:{
+			strcat(dest, "RTI");
+			break;
+		}case OP_STI:{
+			strcat(dest, "STI ");
+			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
+			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
+			sprintf(buffer, "0x%04X", adr);
+			strcat(dest, buffer);
 			break;
 		}
-		case OP_LD:  break;
-		case OP_LDI: break;
-		case OP_LEA: break;
-		case OP_NOT: break;
-		case OP_RTI: break;
-		case OP_STI: break;
 		case OP_STR: break;
 		case OP_TRAP: break;
 		default: strcat(dest,".FILL"); break; 
