@@ -21,8 +21,8 @@ h --> help message
 ### Building
 ```
 cd src
-gcc -std=c11 -o lcasm assembler.c tokenizer.c
-gcc -std=c11 -o lc3 lc3.c
+gcc -std=c11 -o lcasm assembler.c tokenizer.c -lm
+gcc -std=c11 -o lc3 lc3.c -lncurses
 ```
 
 or 
