@@ -13,9 +13,16 @@
 #include <ncurses.h>
 #include "os.h"
 
-#define IMM5        5
-#define PCOFFSET9   9 
-#define PCOFFSET11 11
+#define IMM5               5
+#define PCOFFSET6          6
+#define PCOFFSET9          9 
+#define PCOFFSET11        11
+#define GETC            0x20
+#define OUT             0x21
+#define PUTS            0x22
+#define IN              0x23
+#define PUTSP           0x24
+#define HALT            0x25
 #define MEM_ADDRESSES_NUM (1<<16)
 
 enum {
@@ -310,8 +317,24 @@ void disassemble(char dest[], uint16_t instruction, size_t pc){
 			strcat(dest, buffer);
 			break;
 		}
-		case OP_STR: break;
-		case OP_TRAP: break;
+		case OP_STR:{
+			strcat(dest, "STR ");
+			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
+			strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
+			int16_t adr = SEXT(instruction & 0x003F, PCOFFSET6);
+			sprintf(buffer, "0x%04X", adr);
+			strcat(dest, buffer);
+			break;
+		}
+		case OP_TRAP:{
+			if((instruction & 0x00FF) == GETC) strcat(dest,  "GETC");
+			if((instruction & 0x00FF) == OUT) strcat(dest,   "OUT");
+			if((instruction & 0x00FF) == PUTS) strcat(dest,  "PUTS");
+			if((instruction & 0x00FF) == IN) strcat(dest,    "IN");
+			if((instruction & 0x00FF) == PUTSP) strcat(dest, "PUTSP");
+			if((instruction & 0x00FF) == HALT) strcat(dest,  "HALT");
+			break;
+		} 
 		default: strcat(dest,".FILL"); break; 
 	}
 }
