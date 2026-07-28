@@ -349,12 +349,11 @@ WINDOW *outputWindow;
 WINDOW *inputWindow;
 void InitCurses(){
 	initscr();
-	noecho();
-	raw();
+	noraw();
+	echo();
 
 	getmaxyx(stdscr,terminalRows, terminalColumns);
 	assert(terminalRows > 20 && terminalColumns > 80 && "Terminal too small");
-
 	refresh();
 }
 
@@ -364,6 +363,31 @@ WINDOW *CreateNewWindow(int rows, int cols, int y, int x){
 	wrefresh(win);
 
 	return win;
+}
+
+
+void DrawInfoWindow(){
+	int cols = 0;
+	getmaxyx(infoWindow, cols, cols);
+	mvwprintw(infoWindow, 0, cols /2 - 2, "INFO");
+	mvwprintw(infoWindow, 1, 1, "`q` or `quit` --> exit debugger");
+	mvwprintw(infoWindow, 2, 1, "`n` or `next` --> next instruction");
+	mvwprintw(infoWindow, 3, 1, "`r` or `run`  --> run program until breakpoint");
+	mvwprintw(infoWindow, 3, 1, "`b` x0000-xFFFF  --> add breakpoint to address");
+	wrefresh(infoWindow);
+}
+
+char buff[120] = {0};
+const char *DrawInputWindow(){
+	mvwprintw(inputWindow, 1, 1, ":>");
+	wrefresh(inputWindow);
+	
+	wgetstr(inputWindow, buff);
+	
+	werase(inputWindow);
+	box(inputWindow, 0, 0);
+
+	return buff;
 }
 
 void DrawMainWindow(){
@@ -384,12 +408,14 @@ void DrawMainWindow(){
 	mvwprintw(mainWindow, 1, 19, "INSTR");
 	char instr[INSTRUCTION_TEXT_LEN] = {0};
 	for(int i = 0; i < rows-3; ++i){
+		if(!i) wattron(mainWindow, A_STANDOUT);
 		mvwprintw(mainWindow, i+2, 1, "0x%04X", reg[REG_PC] + i);
 		mvwprintw(mainWindow, i+2, 10, "0x%04X", memory[reg[REG_PC] + i]);
 
 		disassemble(instr, memory[reg[REG_PC] + i], reg[REG_PC] + i);
 		mvwprintw(mainWindow, i+2, 19, "%s",instr);
 		memset(instr, '\0', INSTRUCTION_TEXT_LEN);
+		if(!i) wattroff(mainWindow, A_STANDOUT);
 	}
 
 	wrefresh(mainWindow);
@@ -397,6 +423,8 @@ void DrawMainWindow(){
 
 void DrawRegisterWindow(){
 	int cols = 0;
+	werase(registerWindow);	
+	box(registerWindow, 0, 0);
 	getmaxyx(registerWindow, cols,cols);
 	mvwprintw(registerWindow, 0, cols/2-4, "Registers");
 
@@ -430,6 +458,27 @@ void CreateAllWindows(){
 
 	DrawRegisterWindow();
 	DrawMainWindow();
+	DrawInfoWindow();
+}
+
+void NextInstruction(){
+	uint16_t opcode = memory[reg[REG_PC]] >> 12;
+	switch(opcode){
+		case OP_ADD: ADD_AND(memory[reg[REG_PC]++]);  break;
+		case OP_AND: ADD_AND(memory[reg[REG_PC]++]);  break;
+		case OP_BR:  BR(memory[reg[REG_PC]++]);       break;
+		case OP_JMP: JUMP(memory[reg[REG_PC]++]);     break;
+		case OP_JSR: break;
+		case OP_LD: break;
+		case OP_LDI: break;
+		case OP_LEA: break;
+		case OP_NOT: break;
+		case OP_RTI: break;
+		case OP_STI: break;
+		case OP_STR: break;
+		case OP_TRAP: break;
+		default: reg[REG_PC]++; break;
+	}
 }
 
 int main(int argc, char **argv){
@@ -467,49 +516,30 @@ help:
 		machineStatus = PAUSED;
 		InitCurses();
 		CreateAllWindows();
-		getch();
-		endwin();
 	}else{
 		/* TODO: EMBEDDED */
 	}
 	
 	while(machineStatus == RUNNING){
-		uint16_t opcode = memory[reg[REG_PC]] >> 12;
-		switch(opcode){
-			case OP_ADD: ADD_AND(memory[reg[REG_PC]]++);  break;
-			case OP_AND: ADD_AND(memory[reg[REG_PC]]++);  break;
-			case OP_BR:  BR(memory[reg[REG_PC]]++);       break;
-			case OP_JMP: JUMP(memory[reg[REG_PC]]++);     break;
-			case OP_JSR: break;
-			case OP_LD: break;
-			case OP_LDI: break;
-			case OP_LEA: break;
-			case OP_NOT: break;
-			case OP_RTI: break;
-			case OP_STI: break;
-			case OP_STR: break;
-			case OP_TRAP: break;
-			default: reg[REG_PC]++; break;
+		NextInstruction();
+	}
+
+	while(machineStatus == PAUSED && currentMode == DEBUGGER){
+		const char *input = DrawInputWindow();
+		if(strcmp(input, "quit") == 0 || strcmp(input, "q") == 0) {endwin(); return 0;}
+
+		if(strcmp(input, "next") == 0 || strcmp(input, "n") == 0) {
+			NextInstruction();
 		}
+
+		DrawRegisterWindow();
+		DrawMainWindow();
 	}
 	
 	if(currentMode == CLI) SetOldterminalMode();
 
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
