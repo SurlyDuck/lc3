@@ -169,7 +169,14 @@ void setcc(uint8_t DR){
 	}
 }
 
-/* ----------- Instructions ----------- */
+uint16_t GetFromMemory(uint16_t adr){
+	/* TODO: check for memory mapped devices */
+	return memory[adr];
+}
+
+//------------------------------------------------------------------------------------
+// Instructions
+//------------------------------------------------------------------------------------
 void ADD_AND(uint16_t instr){
 	uint8_t DR  = instr >> 9 & 0x3;
 	uint8_t SR1 = instr >> 6 & 0x3;
@@ -196,12 +203,52 @@ void BR(uint16_t instr){
 
 void JUMP(uint16_t instr){
 	uint8_t BaseR = instr >> 6 & 0x7;
-	reg[REG_PC] = BaseR;
+	reg[REG_PC] = reg[BaseR];
 }
 
+void JSR(uint16_t instr){
+	reg[REG7] = reg[REG_PC];
+	if(instr >> 11 & 1){
+		uint16_t pcoffset11 = instr & 0x03FF;
+		reg[REG_PC] = reg[REG_PC] + SEXT(pcoffset11, PCOFFSET11);
+	}else{
+		uint8_t baseR = instr >> 6 & 0x7;
+		reg[REG_PC] = reg[baseR];
+	}
+}
 
+void LD(uint16_t instr){
+	uint8_t DR = instr >> 9 & 0x7;
+	uint16_t pcoffset9 = instr & 0x01FF;
+	reg[DR] = GetFromMemory(reg[REG_PC] + SEXT(pcoffset9, PCOFFSET9));
+	setcc(DR);
+}
 
-/* ----------- Disassembler ----------- */
+void LDI(uint16_t instr){
+	uint8_t DR = instr >> 9 & 0x7;
+	uint16_t pcoffset9 = instr & 0x01FF;
+	reg[DR] = GetFromMemory(GetFromMemory(reg[REG_PC] + SEXT(pcoffset9, PCOFFSET9)));
+	setcc(DR);
+}
+
+void LEA(uint16_t instr){
+	uint8_t DR = instr >> 9 & 0x7;
+	uint16_t pcoffset9 = instr & 0x01FF;
+	reg[DR] = reg[REG_PC] + SEXT(pcoffset9, PCOFFSET9);
+	setcc(DR);
+}
+
+void NOT(uint16_t instr){
+	uint8_t DR = instr >> 9 & 0x7;
+	uint8_t SR = instr >> 6 & 0x7;
+
+	reg[DR] = ~reg[SR];
+	setcc(DR);
+}
+
+//------------------------------------------------------------------------------------
+// Disassembler
+//------------------------------------------------------------------------------------
 #define INSTRUCTION_TEXT_LEN 32
 const char *GetRegisterText(uint16_t reg){
 	switch(reg){
@@ -339,7 +386,9 @@ void disassemble(char dest[], uint16_t instruction, size_t pc){
 	}
 }
 
-/* ----------- Curses ----------- */
+//------------------------------------------------------------------------------------
+// Curses
+//------------------------------------------------------------------------------------
 int terminalColumns;
 int terminalRows;
 WINDOW *mainWindow;
@@ -468,11 +517,11 @@ void NextInstruction(){
 		case OP_AND: ADD_AND(memory[reg[REG_PC]++]);  break;
 		case OP_BR:  BR(memory[reg[REG_PC]++]);       break;
 		case OP_JMP: JUMP(memory[reg[REG_PC]++]);     break;
-		case OP_JSR: break;
-		case OP_LD: break;
-		case OP_LDI: break;
-		case OP_LEA: break;
-		case OP_NOT: break;
+		case OP_JSR: JSR(memory[reg[REG_PC]++]);      break;
+		case OP_LD:  LD(memory[reg[REG_PC]++]);       break;
+		case OP_LDI: LDI(memory[reg[REG_PC]++]);      break;
+		case OP_LEA: LEA(memory[reg[REG_PC]++]);      break;
+		case OP_NOT: NOT(memory[reg[REG_PC]++]);      break;
 		case OP_RTI: break;
 		case OP_STI: break;
 		case OP_STR: break;
@@ -508,7 +557,8 @@ help:
 		fprintf(stderr, "Couldn't load program \"%s\" \n", argv[1]);
 		return 1;
 	}
-	
+	setcc(0); 
+
 	if(currentMode == CLI){
 		signal(SIGINT, HandleTerminalInterrupt);
 		SetNewTerminalMode();
@@ -519,16 +569,19 @@ help:
 	}else{
 		/* TODO: EMBEDDED */
 	}
-	
+
 	while(machineStatus == RUNNING){
 		NextInstruction();
 	}
-
+	
+	const char *lastInst = NULL;
 	while(machineStatus == PAUSED && currentMode == DEBUGGER){
 		const char *input = DrawInputWindow();
 		if(strcmp(input, "quit") == 0 || strcmp(input, "q") == 0) {endwin(); return 0;}
+		if(strcmp(input, "") == 0 && lastInst != NULL) input = lastInst;
 
 		if(strcmp(input, "next") == 0 || strcmp(input, "n") == 0) {
+			lastInst = "n";
 			NextInstruction();
 		}
 
