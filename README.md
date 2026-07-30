@@ -32,3 +32,9 @@ cd src
 make
 ```
 
+### Resources
+
+MEINERS, Justin; PENDLETON, Ryan. Write your Own Virtual Machine \
+https://www.jmeiners.com/lc3-vm/
+
+PATT, Yale. Introduction to Computing Systems: From Bits and Gates to C and Beyond. 2nd ed.
