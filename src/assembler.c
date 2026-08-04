@@ -11,7 +11,7 @@
 #define ERROR_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Error> %s at line %lu: <%s>\n",msg,line,val)
 #define WARNING_MESSAGE(msg) fprintf(stderr, "<Warning> %s\n", msg)	
 #define WARNING_MESSAGE_LONG(msg,line,val) fprintf(stderr, "<Warning> %s at line %lu: <%s>\n",msg,line,val)
-#define PRINT_USAGE fprintf(stdout,"\nUsage: ./lcasm -f program.asm [OPTIONS: -hol]\n"); \
+#define PRINT_USAGE fprintf(stdout,"\nUsage: ./lcasm program.asm [OPTIONS: -hol]\n"); \
 fprintf(stdout,"h - Print this message\no - Output file name\nl - Output file use little endianess\n")
 
 #define ADD_AND_PARAMETERS   4
@@ -71,21 +71,22 @@ int main(int argc, char **argv){
 	}
 	
 	char opt = 0;
-	while((opt = getopt(argc, argv,"hf:o:l")) != -1){
+	int cargc = 1;
+	while((opt = getopt(argc, argv,"ho:l")) != -1){
 		switch(opt){
 			case 'h': PRINT_USAGE; return 0;
-			case 'f': inputFileName  = optarg; break;
-			case 'o': outputFileName = optarg; break;
-			case 'l': isLittleEndian = true; break;
+			//case 'f': inputFileName  = optarg; break;
+			case 'o': outputFileName = optarg; cargc+=2;  break;
+			case 'l': isLittleEndian = true; cargc++; break;
 			default: PRINT_USAGE;return 1;
 		}
 	}
-
-	if(inputFileName == NULL){
-		fprintf(stdout, "input file not given\n");
+	if(cargc > argc-1){
 		PRINT_USAGE;
 		return 1;
 	}
+
+	inputFileName = argv[cargc];
 
 	if(outputFileName == NULL){
 		WARNING_MESSAGE("Output file name not given, choosing ´output.obj´");
