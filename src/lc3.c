@@ -174,6 +174,11 @@ uint16_t GetFromMemory(uint16_t adr){
 	return memory[adr];
 }
 
+void UpdateToMemory(uint16_t adr, uint16_t value){
+	/* TODO: check for memory mapped devices */
+	memory[adr] = value;
+}
+
 //------------------------------------------------------------------------------------
 // Instructions
 //------------------------------------------------------------------------------------
@@ -192,6 +197,20 @@ void ADD_AND(uint16_t instr){
 	}
 	
 	setcc(DR);
+}
+
+void LDR(uint16_t instr){
+	uint8_t DR    = instr >> 9 & 0x3;
+	uint8_t BASER = instr >> 6 & 0x3;
+	uint16_t pcoffset6 = instr & 0x3F;
+	reg[DR] = GetFromMemory(reg[BASER] + SEXT(pcoffset6, PCOFFSET6));
+	
+	setcc(DR);
+}
+
+void STR(uint16_t instr){
+	/* TODO */
+	return;
 }
 
 void BR(uint16_t instr){
@@ -244,6 +263,29 @@ void NOT(uint16_t instr){
 
 	reg[DR] = ~reg[SR];
 	setcc(DR);
+}
+
+void RTI(){
+	/* TODO */
+	return;
+}
+
+void ST(uint16_t instr){
+	uint8_t SR = instr >> 9 & 0x7;
+	uint16_t pcoffset9 = instr & 0x01FF;
+
+	UpdateToMemory(reg[REG_PC] + SEXT(pcoffset9, PCOFFSET9), reg[SR]);
+}
+
+void STI(uint16_t instr){
+	uint8_t SR = instr >> 9 & 0x7;
+	uint16_t pcoffset9 = instr & 0x01FF;
+	
+	UpdateToMemory(GetFromMemory(reg[REG_PC] + SEXT(pcoffset9, PCOFFSET9)), reg[SR]);
+}
+
+void TRAP(uint16_t instr){
+	return;
 }
 
 //------------------------------------------------------------------------------------
@@ -334,6 +376,14 @@ void disassemble(char dest[], uint16_t instruction, size_t pc){
 			sprintf(buffer, "0x%04X", adr);
 			strcat(dest, buffer);
 			break;
+		}case OP_LDR:{
+			strcat(dest, "LDR ");
+			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
+			strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
+			int16_t adr = SEXT(instruction & 0x3F, PCOFFSET6);
+			sprintf(buffer, "0x%04X", adr);
+			strcat(dest, buffer);
+			break;
 		}case OP_LDI: {
 			strcat(dest, "LDI ");
 			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
@@ -366,6 +416,15 @@ void disassemble(char dest[], uint16_t instruction, size_t pc){
 		}
 		case OP_STR:{
 			strcat(dest, "STR ");
+			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
+			strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
+			int16_t adr = SEXT(instruction & 0x003F, PCOFFSET6);
+			sprintf(buffer, "0x%04X", adr);
+			strcat(dest, buffer);
+			break;
+		}
+		case OP_ST:{
+			strcat(dest, "ST ");
 			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
 			strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
 			int16_t adr = SEXT(instruction & 0x003F, PCOFFSET6);
@@ -511,21 +570,41 @@ void CreateAllWindows(){
 }
 
 void NextInstruction(){
+enum {
+	OP_BR = 0, /* branch */
+	OP_ADD,    /* add  */
+	OP_LD,     /* load */
+	OP_ST,     /* store */
+	OP_JSR,    /* jump register */
+	OP_AND,    /* bitwise and */
+	OP_LDR,    /* load register */
+	OP_STR,    /* store register */
+	OP_RTI,    /* unused */
+	OP_NOT,    /* bitwise not */
+	OP_LDI,    /* load indirect */
+	OP_STI,    /* store indirect */
+	OP_JMP,    /* jump */
+	OP_RES,    /* reserved (unused) */
+	OP_LEA,    /* load effective address */
+	OP_TRAP    /* execute trap */
+};
 	uint16_t opcode = memory[reg[REG_PC]] >> 12;
 	switch(opcode){
-		case OP_ADD: ADD_AND(memory[reg[REG_PC]++]);  break;
-		case OP_AND: ADD_AND(memory[reg[REG_PC]++]);  break;
-		case OP_BR:  BR(memory[reg[REG_PC]++]);       break;
-		case OP_JMP: JUMP(memory[reg[REG_PC]++]);     break;
-		case OP_JSR: JSR(memory[reg[REG_PC]++]);      break;
-		case OP_LD:  LD(memory[reg[REG_PC]++]);       break;
-		case OP_LDI: LDI(memory[reg[REG_PC]++]);      break;
-		case OP_LEA: LEA(memory[reg[REG_PC]++]);      break;
-		case OP_NOT: NOT(memory[reg[REG_PC]++]);      break;
-		case OP_RTI: break;
-		case OP_STI: break;
-		case OP_STR: break;
-		case OP_TRAP: break;
+		case OP_ADD:   ADD_AND(memory[reg[REG_PC]++]);  break;
+		case OP_AND:   ADD_AND(memory[reg[REG_PC]++]);  break;
+		case OP_LDR:   LDR(memory[reg[REG_PC]++]);      break;
+		case OP_STR:   STR(memory[reg[REG_PC]++]);      break;
+		case OP_BR:    BR(memory[reg[REG_PC]++]);       break;
+		case OP_JMP:   JUMP(memory[reg[REG_PC]++]);     break;
+		case OP_JSR:   JSR(memory[reg[REG_PC]++]);      break;
+		case OP_LD:    LD(memory[reg[REG_PC]++]);       break;
+		case OP_LDI:   LDI(memory[reg[REG_PC]++]);      break;
+		case OP_LEA:   LEA(memory[reg[REG_PC]++]);      break;
+		case OP_NOT:   NOT(memory[reg[REG_PC]++]);      break;
+		case OP_RTI:   RTI();                           break;
+		case OP_ST:    ST(memory[reg[REG_PC]++]);       break;
+		case OP_STI:   STI(memory[reg[REG_PC]++]);      break;
+		case OP_TRAP:  TRAP(memory[reg[REG_PC]++]);     break;
 		default: reg[REG_PC]++; break;
 	}
 }
