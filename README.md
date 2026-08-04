@@ -6,7 +6,7 @@
 
 ### Assembler usage
 ```
-./lcasm file.asm -o output.obj OPTIONS[hl]
+./lcasm -o output.obj OPTIONS[hl] file.asm 
 h --> help message
 l --> little endian output
 ```
