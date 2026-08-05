@@ -114,10 +114,10 @@ bool IsKeyPressed(){
 
 void LoadOS(){
 	uint16_t memPtr = 0;
-	for(unsigned int i = 1; i < __bin_os_obj_len-2; i+=2){
+	for(unsigned int i = 3; i < __bin_os_obj_len-2; i+=2){
 		uint16_t msb   = (uint16_t)(__bin_os_obj[i-1]);
 		uint16_t lsb   = (uint16_t)(__bin_os_obj[i]);
-		memory[memPtr] = (uint16_t)((lsb << 8) | msb);
+		memory[memPtr] = (uint16_t)((msb << 8) | lsb);
 		memPtr++;
 	}
 }
@@ -209,8 +209,11 @@ void LDR(uint16_t instr){
 }
 
 void STR(uint16_t instr){
-	/* TODO */
-	return;
+	uint8_t SR    = instr >> 9 & 0x3;
+	uint8_t BASER = instr >> 6 & 0x3;
+	uint16_t pcoffset6 = instr & 0x3F;
+	
+	UpdateToMemory(reg[BASER] + SEXT(pcoffset6, PCOFFSET6), reg[SR]);
 }
 
 void BR(uint16_t instr){
@@ -285,7 +288,10 @@ void STI(uint16_t instr){
 }
 
 void TRAP(uint16_t instr){
-	return;
+	reg[REG7] = reg[REG_PC];
+	uint16_t trapvect8 = instr & 0xFF;
+	
+	reg[REG_PC] = GetFromMemory(trapvect8);
 }
 
 //------------------------------------------------------------------------------------
@@ -570,24 +576,6 @@ void CreateAllWindows(){
 }
 
 void NextInstruction(){
-enum {
-	OP_BR = 0, /* branch */
-	OP_ADD,    /* add  */
-	OP_LD,     /* load */
-	OP_ST,     /* store */
-	OP_JSR,    /* jump register */
-	OP_AND,    /* bitwise and */
-	OP_LDR,    /* load register */
-	OP_STR,    /* store register */
-	OP_RTI,    /* unused */
-	OP_NOT,    /* bitwise not */
-	OP_LDI,    /* load indirect */
-	OP_STI,    /* store indirect */
-	OP_JMP,    /* jump */
-	OP_RES,    /* reserved (unused) */
-	OP_LEA,    /* load effective address */
-	OP_TRAP    /* execute trap */
-};
 	uint16_t opcode = memory[reg[REG_PC]] >> 12;
 	switch(opcode){
 		case OP_ADD:   ADD_AND(memory[reg[REG_PC]++]);  break;
