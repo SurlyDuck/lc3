@@ -169,13 +169,26 @@ void setcc(uint8_t DR){
 	}
 }
 
+#define OS_KBSR 0xFE00     // keyboard status register
+#define OS_KBDR 0xFE02     // keyboard data register
+#define OS_DSR  0xFE04     // display status register
+#define OS_DDR  0xFE06     // display data register
+#define OS_MCR  0xFFFE     // machine control register
+
 uint16_t GetFromMemory(uint16_t adr){
-	/* TODO: check for memory mapped devices */
+	if(!(memory[OS_DSR] >> 15)) memory[OS_DSR] = 0xFFFF;
+
 	return memory[adr];
 }
 
 void UpdateToMemory(uint16_t adr, uint16_t value){
-	/* TODO: check for memory mapped devices */
+	if(adr == OS_DDR && memory[OS_DSR]){
+		memory[OS_DSR] = 0x0000;
+		putchar(value);
+	}else if(adr == OS_MCR && !(value >> 15)){
+		machineStatus = HALTED;
+	}
+
 	memory[adr] = value;
 }
 
@@ -193,7 +206,7 @@ void ADD_AND(uint16_t instr){
 	}else{
 		uint8_t SR2 = instr & 0x3;
 		if(instr >> 12 == OP_ADD) reg[DR] = reg[SR1] + reg[SR2];
-		else reg[DR] = reg[SR1] * reg[SR2];
+		else reg[DR] = reg[SR1] & reg[SR2];
 	}
 	
 	setcc(DR);
@@ -314,7 +327,7 @@ const char *GetRegisterText(uint16_t reg){
 }
 
 #define SPACE strcat(dest, " ")
-void disassemble(char dest[], uint16_t instruction, size_t pc){
+void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 	uint16_t opcode = instruction >> 12;
 	char buffer[256] = {0};
 	/* TODO: fix repetitions */
@@ -415,7 +428,7 @@ void disassemble(char dest[], uint16_t instruction, size_t pc){
 		}case OP_STI:{
 			strcat(dest, "STI ");
 			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
-			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
+			uint16_t adr = memory[(uint16_t)(SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1)];
 			sprintf(buffer, "0x%04X", adr);
 			strcat(dest, buffer);
 			break;
@@ -638,12 +651,9 @@ help:
 		/* TODO: EMBEDDED */
 	}
 
-	while(machineStatus == RUNNING){
-		NextInstruction();
-	}
 	
 	const char *lastInst = NULL;
-	while(machineStatus == PAUSED && currentMode == DEBUGGER){
+	while(currentMode == DEBUGGER){
 		const char *input = DrawInputWindow();
 		if(strcmp(input, "quit") == 0 || strcmp(input, "q") == 0) {endwin(); return 0;}
 		if(strcmp(input, "") == 0 && lastInst != NULL) input = lastInst;
@@ -657,6 +667,26 @@ help:
 		DrawMainWindow();
 	}
 	
+	while(machineStatus == RUNNING || machineStatus == HALTED){
+		NextInstruction();
+		
+		if(machineStatus == HALTED) {
+			printf("\nThe machine has been halted, restart it? (y/n): ");
+			int ans = getchar();
+			if(ans == 'n' || ans == 'N') break;
+			else {
+				/* TODO: Restart from where the program originally started */
+				reg[REG_PC] = 0x3000;
+				machineStatus = RUNNING;
+				/* TODO: Reset all registers */
+				memory[OS_MCR] = 0xF00F;
+				continue;
+			}
+		}
+	}
+	
+	
+
 	if(currentMode == CLI) SetOldterminalMode();
 
 	return 0;

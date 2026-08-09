@@ -1,9 +1,15 @@
 ;file to test assembler error handling
 .ORIG x3000
 
+AND R0 R0 #0
+LD  R0 LETTER
+OUT
+AND R0 R0 #0
+LD  R0 LETTER2
+OUT
 HALT
-STR R0, R1, #1
 
-.FILL xFE00
+LETTER: .FILL x48
+LETTER2: .FILL x49
 
 .END
