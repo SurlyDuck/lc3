@@ -310,13 +310,13 @@ const char *GetRegisterText(uint16_t reg){
 		case 7: return "R7 ";
 	}
 	
-	return "INVALID";
+	return "NR";
 }
 
 #define SPACE strcat(dest, " ")
 void disassemble(char dest[], uint16_t instruction, size_t pc){
 	uint16_t opcode = instruction >> 12;
-	char buffer[8] = {0};
+	char buffer[256] = {0};
 	/* TODO: fix repetitions */
 	switch(opcode){
 		case OP_ADD: {
@@ -356,7 +356,7 @@ void disassemble(char dest[], uint16_t instruction, size_t pc){
 			if(instruction >> 9 & 1) strcat(dest, "p");
 			
 			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
-			sprintf(buffer, "0x%04X", adr);
+				sprintf(buffer, "0x%04X", adr);
 			SPACE;
 			strcat(dest, buffer);
 			break;
@@ -440,11 +440,13 @@ void disassemble(char dest[], uint16_t instruction, size_t pc){
 		}
 		case OP_TRAP:{
 			if((instruction & 0x00FF) == GETC) strcat(dest,  "GETC");
-			if((instruction & 0x00FF) == OUT) strcat(dest,   "OUT");
-			if((instruction & 0x00FF) == PUTS) strcat(dest,  "PUTS");
-			if((instruction & 0x00FF) == IN) strcat(dest,    "IN");
-			if((instruction & 0x00FF) == PUTSP) strcat(dest, "PUTSP");
-			if((instruction & 0x00FF) == HALT) strcat(dest,  "HALT");
+			else if((instruction & 0x00FF) == OUT) strcat(dest,   "OUT");
+			else if((instruction & 0x00FF) == PUTS) strcat(dest,  "PUTS");
+			else if((instruction & 0x00FF) == IN) strcat(dest,    "IN");
+			else if((instruction & 0x00FF) == PUTSP) strcat(dest, "PUTSP");
+			else if((instruction & 0x00FF) == HALT) strcat(dest,  "HALT");
+			else strcat(dest,  ".FILL");
+			
 			break;
 		} 
 		default: strcat(dest,".FILL"); break; 
@@ -525,7 +527,6 @@ void DrawMainWindow(){
 		if(!i) wattron(mainWindow, A_STANDOUT);
 		mvwprintw(mainWindow, i+2, 1, "0x%04X", reg[REG_PC] + i);
 		mvwprintw(mainWindow, i+2, 10, "0x%04X", memory[reg[REG_PC] + i]);
-
 		disassemble(instr, memory[reg[REG_PC] + i], reg[REG_PC] + i);
 		mvwprintw(mainWindow, i+2, 19, "%s",instr);
 		memset(instr, '\0', INSTRUCTION_TEXT_LEN);
