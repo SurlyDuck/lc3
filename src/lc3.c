@@ -82,6 +82,9 @@ struct termios oldTerminalMode;
 status machineStatus = RUNNING;
 mode currentMode = CLI;
 
+
+void AddCharacterToOutput(char value);
+
 void SetOldterminalMode(){
 	tcsetattr(STDIN_FILENO, TCSANOW, &oldTerminalMode); 
 }
@@ -184,7 +187,8 @@ uint16_t GetFromMemory(uint16_t adr){
 void UpdateToMemory(uint16_t adr, uint16_t value){
 	if(adr == OS_DDR && memory[OS_DSR]){
 		memory[OS_DSR] = 0x0000;
-		putchar(value);
+		if(currentMode != DEBUGGER) putchar(value);
+		else AddCharacterToOutput(value);
 	}else if(adr == OS_MCR && !(value >> 15)){
 		machineStatus = HALTED;
 	}
@@ -508,13 +512,13 @@ void DrawInfoWindow(){
 
 char buff[120] = {0};
 const char *DrawInputWindow(){
-	mvwprintw(inputWindow, 1, 1, ":>");
-	wrefresh(inputWindow);
-	
-	wgetstr(inputWindow, buff);
-	
 	werase(inputWindow);
 	box(inputWindow, 0, 0);
+	wrefresh(inputWindow);
+	
+	mvwprintw(inputWindow, 1, 1, ":>");
+	wgetstr(inputWindow, buff);
+	
 
 	return buff;
 }
@@ -571,10 +575,39 @@ void DrawRegisterWindow(){
 			y = y+1;
 			wmove(registerWindow, y,x);
 		}
-
 	}
 
 	wrefresh(registerWindow);
+}
+
+#define OUTPUT_BUFFER_LENGTH 1024
+char outputBuffer[OUTPUT_BUFFER_LENGTH] = {0};
+int outputPtr = 0;
+void AddCharacterToOutput(char c){
+	outputBuffer[outputPtr++] = c;
+
+	if(outputPtr >= OUTPUT_BUFFER_LENGTH)
+		outputPtr = OUTPUT_BUFFER_LENGTH-1;
+}
+
+void DrawOutputWindow(){
+	int rows, columns, y, x, windowSize,start;
+	getmaxyx(outputWindow, rows, columns);
+	windowSize = (rows-2) * (columns-2);
+	if(outputPtr > windowSize) start = outputPtr - windowSize;
+	else start = 0;
+	
+	werase(outputWindow);
+	box(outputWindow, 0, 0);
+	wmove(outputWindow, 1, 1);
+	for(int i = start; i < outputPtr; ++i){
+		waddch(outputWindow, outputBuffer[i]);
+		getyx(outputWindow, y, x);
+		if(x >= columns-1) wmove(outputWindow, y+1, 1);
+		
+	}
+
+	wrefresh(outputWindow);
 }
 
 void CreateAllWindows(){
@@ -609,6 +642,32 @@ void NextInstruction(){
 		case OP_TRAP:  TRAP(memory[reg[REG_PC]++]);     break;
 		default: reg[REG_PC]++; break;
 	}
+}
+
+void RestartMachine(){
+	/* TODO: Restart from where the program originally started */
+	reg[REG_PC] = 0x3000;
+	machineStatus = RUNNING;
+	/* TODO: Reset all memory mapped registers */
+	memory[OS_MCR] = 0xF00F;
+	reg[REG0] = 0;
+	reg[REG1] = 0;
+	reg[REG2] = 0;
+	reg[REG3] = 0;
+	reg[REG4] = 0;
+	reg[REG5] = 0;
+	reg[REG6] = 0;
+	reg[REG7] = 0;
+
+	if(currentMode != DEBUGGER) return;
+
+	werase(inputWindow);
+	memset(outputBuffer, '\0', OUTPUT_BUFFER_LENGTH);
+	outputPtr = 0;
+
+	DrawRegisterWindow();
+	DrawMainWindow();
+	DrawOutputWindow();
 }
 
 int main(int argc, char **argv){
@@ -665,6 +724,20 @@ help:
 
 		DrawRegisterWindow();
 		DrawMainWindow();
+		DrawOutputWindow();
+
+		if(machineStatus == HALTED){
+			wprintw(inputWindow, "\nMachine halted. Restart? (y/n): ");
+			char ans[128];
+			wgetstr(inputWindow, ans);
+
+			if(strcmp(ans, "n") == 0){
+				endwin();
+				return 0;
+			}else{
+				RestartMachine();
+			}
+		}
 	}
 	
 	while(machineStatus == RUNNING || machineStatus == HALTED){
@@ -675,18 +748,13 @@ help:
 			int ans = getchar();
 			if(ans == 'n' || ans == 'N') break;
 			else {
-				/* TODO: Restart from where the program originally started */
-				reg[REG_PC] = 0x3000;
-				machineStatus = RUNNING;
-				/* TODO: Reset all registers */
-				memory[OS_MCR] = 0xF00F;
+				printf("\n");
+				RestartMachine();
 				continue;
 			}
 		}
 	}
 	
-	
-
 	if(currentMode == CLI) SetOldterminalMode();
 
 	return 0;
