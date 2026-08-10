@@ -2,6 +2,8 @@
 
 -This is my implementation of the LC-3 virtual machine and assembler (lcasm) in C. Still unfinished, but the assembler is already somewhat functional. You can try assembling programs in /src/examples to test its current capabilities.
 
+-The virtual machine has a simple debugger and disassembler implemented as a TUI. You can use it with -d. Also unfinished.
+
 -Linux only for now.
 
 ### Assembler usage

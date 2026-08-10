@@ -709,7 +709,6 @@ help:
 	}else{
 		/* TODO: EMBEDDED */
 	}
-
 	
 	const char *lastInst = NULL;
 	while(currentMode == DEBUGGER){

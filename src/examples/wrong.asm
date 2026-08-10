@@ -6,6 +6,6 @@ LEA R0 MYSTRING
 PUTS
 HALT
 
-MYSTRING: .STRINGZ "wassup"
+MYSTRING: .STRINGZ "wassup\ntest"
 
 .END
