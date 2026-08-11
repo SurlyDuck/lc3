@@ -103,11 +103,13 @@ void SetNewTerminalMode(){
 	tcsetattr(STDIN_FILENO, TCSANOW, &newTerminalMode); 
 }
 
-struct pollfd fds[1];
+struct pollfd fds[1] = {
+	{.fd = STDIN_FILENO, .events = POLLIN}
+};
 bool IsKeyPressed(){
-	int timeout = 500;
-	fds[0].fd = STDIN_FILENO;
-	fds[0].events = POLLIN;
+	int timeout = 10;
+	//fds[0].fd = STDIN_FILENO;
+	//fds[0].events = POLLIN;
 	int ret = poll(fds,1,timeout);
 
 	if(ret > 0) return true;
@@ -179,7 +181,15 @@ void setcc(uint8_t DR){
 #define OS_MCR  0xFFFE     // machine control register
 
 uint16_t GetFromMemory(uint16_t adr){
+	assert(memory[OS_MCR] >> 15);
 	if(!(memory[OS_DSR] >> 15)) memory[OS_DSR] = 0xFFFF;
+	if(adr == OS_KBSR){
+		if(IsKeyPressed()) memory[OS_KBSR] = 0xFFFF;
+		else memory[OS_KBSR] = 0x0000;
+	}else if(adr == OS_KBDR && (memory[OS_KBSR] >> 15)){
+		memory[OS_KBDR] = getchar();
+	}
+
 
 	return memory[adr];
 }
@@ -187,7 +197,10 @@ uint16_t GetFromMemory(uint16_t adr){
 void UpdateToMemory(uint16_t adr, uint16_t value){
 	if(adr == OS_DDR && memory[OS_DSR]){
 		memory[OS_DSR] = 0x0000;
-		if(currentMode != DEBUGGER) putchar(value);
+		if(currentMode != DEBUGGER) {
+			putchar(value);
+			fflush(stdout);
+		}
 		else AddCharacterToOutput(value);
 	}else if(adr == OS_MCR && !(value >> 15)){
 		machineStatus = HALTED;
@@ -601,9 +614,12 @@ void DrawOutputWindow(){
 	box(outputWindow, 0, 0);
 	wmove(outputWindow, 1, 1);
 	for(int i = start; i < outputPtr; ++i){
-		waddch(outputWindow, outputBuffer[i]);
 		getyx(outputWindow, y, x);
-		if(x >= columns-1) wmove(outputWindow, y+1, 1);
+		if(outputBuffer[i] == '\n') wmove(outputWindow, y+1, 1);
+		else{
+			waddch(outputWindow, outputBuffer[i]);
+			if(x >= columns-1) wmove(outputWindow, y+1, 1);
+		}
 		
 	}
 
@@ -649,7 +665,9 @@ void RestartMachine(){
 	reg[REG_PC] = 0x3000;
 	machineStatus = RUNNING;
 	/* TODO: Reset all memory mapped registers */
-	memory[OS_MCR] = 0xF00F;
+	memory[OS_MCR] = 0xF000;
+	memory[OS_DDR] = 0x0000;
+	memory[OS_DSR] = 0x0000;
 	reg[REG0] = 0;
 	reg[REG1] = 0;
 	reg[REG2] = 0;
@@ -711,6 +729,9 @@ help:
 	}
 	
 	const char *lastInst = NULL;
+	memory[OS_MCR] = 0xF000; // Starts the machine
+
+	// Debugger mode
 	while(currentMode == DEBUGGER){
 		const char *input = DrawInputWindow();
 		if(strcmp(input, "quit") == 0 || strcmp(input, "q") == 0) {endwin(); return 0;}
@@ -739,15 +760,18 @@ help:
 		}
 	}
 	
+	// CLI mode
 	while(machineStatus == RUNNING || machineStatus == HALTED){
 		NextInstruction();
 		
 		if(machineStatus == HALTED) {
 			printf("\nThe machine has been halted, restart it? (y/n): ");
 			int ans = getchar();
-			if(ans == 'n' || ans == 'N') break;
-			else {
-				printf("\n");
+			if(ans == 'n' || ans == 'N') {
+				putchar('\n');
+				break;
+			}else {
+				putchar('\n');
 				RestartMachine();
 				continue;
 			}

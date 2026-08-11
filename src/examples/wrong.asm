@@ -1,11 +1,23 @@
 ;file to test assembler error handling
 .ORIG x3000
 
-AND R0 R0 #0
-LEA R0 MYSTRING
-PUTS
+MESSAGE:
+	AND R0 R0 #0
+	LEA R0 TEXT
+	PUTS
+START:
+	AND R0 R0 #0
+	AND R2 R2 #0
+	LD  R1 LETTER
+	GETC
+	NOT R0 R0
+	ADD R0 R0 #1
+	ADD R2 R0 R1
+	BRNP START
+
 HALT
 
-MYSTRING: .STRINGZ "wassup\ntest"
+TEXT: .STRINGZ "Press a to exit:"
+LETTER: .STRINGZ "a"
 
 .END
