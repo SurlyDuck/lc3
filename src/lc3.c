@@ -82,7 +82,6 @@ struct termios oldTerminalMode;
 status machineStatus = RUNNING;
 mode currentMode = CLI;
 
-
 void AddCharacterToOutput(char value);
 
 void SetOldterminalMode(){
@@ -174,6 +173,24 @@ void setcc(uint8_t DR){
 	}
 }
 
+#define MAX_INPUT_BUFFER_LENGTH 1024
+static uint16_t inputBuffer[MAX_INPUT_BUFFER_LENGTH] = {0};
+static uint16_t inputBufferPtr = 0;
+
+void AddToInputBuffer(uint16_t value){
+	if(inputBufferPtr+1 >= MAX_INPUT_BUFFER_LENGTH) return;
+	inputBuffer[inputBufferPtr++] = value;
+}
+
+uint16_t GetInputBufferLength(){
+	return inputBufferPtr;
+}
+
+uint16_t GetFromInputBuffer(){
+	if(inputBufferPtr == 0) return 0;
+	return inputBuffer[--inputBufferPtr];
+}
+
 #define OS_KBSR 0xFE00     // keyboard status register
 #define OS_KBDR 0xFE02     // keyboard data register
 #define OS_DSR  0xFE04     // display status register
@@ -184,10 +201,18 @@ uint16_t GetFromMemory(uint16_t adr){
 	assert(memory[OS_MCR] >> 15);
 	if(!(memory[OS_DSR] >> 15)) memory[OS_DSR] = 0xFFFF;
 	if(adr == OS_KBSR){
-		if(IsKeyPressed()) memory[OS_KBSR] = 0xFFFF;
-		else memory[OS_KBSR] = 0x0000;
+		if(currentMode != DEBUGGER){
+			if(IsKeyPressed()) memory[OS_KBSR] = 0xFFFF;
+			else memory[OS_KBSR] = 0x0000;
+		}else{
+			if(GetInputBufferLength() != 0) memory[OS_KBSR] = 0xFFFF;
+			else memory[OS_KBSR] = 0x0000;
+		}
 	}else if(adr == OS_KBDR && (memory[OS_KBSR] >> 15)){
-		memory[OS_KBDR] = getchar();
+		if (currentMode != DEBUGGER)
+			memory[OS_KBDR] = getchar();
+		else 
+			memory[OS_KBDR] = GetFromInputBuffer();
 	}
 
 
@@ -519,7 +544,8 @@ void DrawInfoWindow(){
 	mvwprintw(infoWindow, 1, 1, "`q` or `quit` --> exit debugger");
 	mvwprintw(infoWindow, 2, 1, "`n` or `next` --> next instruction");
 	mvwprintw(infoWindow, 3, 1, "`r` or `run`  --> run program until breakpoint");
-	mvwprintw(infoWindow, 3, 1, "`b` x0000-xFFFF  --> add breakpoint to address");
+	mvwprintw(infoWindow, 4, 1, "`b` x0000-xFFFF  --> add breakpoint to address");
+	mvwprintw(infoWindow, 5, 1, "`/` char --> add a char to the input buffer (LIFO)");
 	wrefresh(infoWindow);
 }
 
@@ -740,6 +766,11 @@ help:
 		if(strcmp(input, "next") == 0 || strcmp(input, "n") == 0) {
 			lastInst = "n";
 			NextInstruction();
+		}else if(input[0] == '/'){
+			for(int i = 1; input[i] != '\0'; ++i){
+				AddToInputBuffer(input[i]);
+				lastInst = NULL;
+			}
 		}
 
 		DrawRegisterWindow();
