@@ -351,6 +351,7 @@ void TRAP(uint16_t instr){
 
 //------------------------------------------------------------------------------------
 // Disassembler
+// TODO: too many repetitions in here
 //------------------------------------------------------------------------------------
 #define INSTRUCTION_TEXT_LEN 32
 const char *GetRegisterText(uint16_t reg){
@@ -372,7 +373,6 @@ const char *GetRegisterText(uint16_t reg){
 void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 	uint16_t opcode = instruction >> 12;
 	char buffer[256] = {0};
-	/* TODO: fix repetitions */
 	switch(opcode){
 		case OP_ADD: {
 			strcat(dest, "ADD ");
@@ -546,18 +546,44 @@ void DrawInfoWindow(){
 	mvwprintw(infoWindow, 3, 1, "`r` or `run`  --> run program until breakpoint");
 	mvwprintw(infoWindow, 4, 1, "`b` x0000-xFFFF  --> add breakpoint to address");
 	mvwprintw(infoWindow, 5, 1, "`/` char --> add a char to the input buffer (LIFO)");
+	mvwprintw(infoWindow, 6, 1, "`c` or `cls` --> clear command window");
 	wrefresh(infoWindow);
 }
 
-char buff[120] = {0};
+static char buff[120] = {0};
+static char buffHistory[256] = {0};
+// TODO: this is pretty bad
 const char *DrawInputWindow(){
+	int x, y, rows, cols;
+	x = y = rows = cols = 0;
+	getmaxyx(inputWindow, rows, cols);
+	memset(buff, '\0', 120);
+
 	werase(inputWindow);
 	box(inputWindow, 0, 0);
 	wrefresh(inputWindow);
+
+	wmove(inputWindow, 1, 1);
+	for(uint16_t i = 0; buffHistory[i] != '\0'; ++i){
+		waddch(inputWindow, buffHistory[i]);
+		if(buffHistory[i] == '\n'){
+			getyx(inputWindow, y, x);
+			wmove(inputWindow, y, x + 1);
+		}
+	}
+
+	box(inputWindow, 0, 0);
+
+	getyx(inputWindow, y, x);
+	if(y >= rows-2) {
+		memset(buffHistory, '\0', 256);
+	}
 	
-	mvwprintw(inputWindow, 1, 1, ":>");
+	waddstr(inputWindow, ":>");
 	wgetstr(inputWindow, buff);
-	
+	if(strcmp(buff, "") == 0) return "";
+	strcat(buffHistory, buff);
+	strcat(buffHistory, "\n");
 
 	return buff;
 }
@@ -664,6 +690,13 @@ void CreateAllWindows(){
 	DrawInfoWindow();
 }
 
+//------------------------------------------------------------------------------------
+// Machine operation
+//------------------------------------------------------------------------------------
+bool AddBreakPoint(){
+	return false;
+}
+
 void NextInstruction(){
 	uint16_t opcode = memory[reg[REG_PC]] >> 12;
 	switch(opcode){
@@ -763,14 +796,26 @@ help:
 		if(strcmp(input, "quit") == 0 || strcmp(input, "q") == 0) {endwin(); return 0;}
 		if(strcmp(input, "") == 0 && lastInst != NULL) input = lastInst;
 
-		if(strcmp(input, "next") == 0 || strcmp(input, "n") == 0) {
+		if(input[0] == 'n') {
 			lastInst = "n";
 			NextInstruction();
+		}else if(input[0] == 'b'){
+			if(!AddBreakPoint(input)){
+				strcat(buffHistory, "invalid address");
+			}
+			lastInst = NULL;
 		}else if(input[0] == '/'){
 			for(int i = 1; input[i] != '\0'; ++i){
 				AddToInputBuffer(input[i]);
-				lastInst = NULL;
+				lastInst = "";
 			}
+			lastInst = NULL;
+		}else if(input[0] == 'c'){
+			memset(buffHistory, '\0', sizeof(buffHistory)/sizeof(char));
+			lastInst = "c";
+		}else{
+			if(strcmp(input, "") != 0)
+				strcat(buffHistory, "Invalid command");
 		}
 
 		DrawRegisterWindow();
