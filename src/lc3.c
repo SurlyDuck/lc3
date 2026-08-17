@@ -551,39 +551,44 @@ void DrawInfoWindow(){
 }
 
 static char buff[120] = {0};
-static char buffHistory[256] = {0};
+static char **buffHistory = NULL;
+static size_t buffHistoryPtr = 0;
 // TODO: this is pretty bad
 const char *DrawInputWindow(){
-	int x, y, rows, cols;
-	x = y = rows = cols = 0;
+	size_t rows, cols;
+	rows = cols = 0;
 	getmaxyx(inputWindow, rows, cols);
 	memset(buff, '\0', 120);
-
+	
 	werase(inputWindow);
 	box(inputWindow, 0, 0);
-	wrefresh(inputWindow);
-
 	wmove(inputWindow, 1, 1);
-	for(uint16_t i = 0; buffHistory[i] != '\0'; ++i){
-		waddch(inputWindow, buffHistory[i]);
-		if(buffHistory[i] == '\n'){
-			getyx(inputWindow, y, x);
-			wmove(inputWindow, y, x + 1);
+
+	size_t  i = 0;
+	uint8_t y = 0;
+	if(buffHistory != NULL){
+		if(buffHistoryPtr > rows-3){
+			i = buffHistoryPtr - (rows - 3);
 		}
-	}
 
-	box(inputWindow, 0, 0);
-
-	getyx(inputWindow, y, x);
-	if(y >= rows-2) {
-		memset(buffHistory, '\0', 256);
+		for(; i < buffHistoryPtr; ++i){
+			mvwprintw(inputWindow, 1+y, 1, buffHistory[i]);
+			y++;
+		}
+		waddch(inputWindow, '\n');
 	}
 	
+	box(inputWindow, 0, 0);
+	wmove(inputWindow, y+1, 1);
 	waddstr(inputWindow, ":>");
 	wgetstr(inputWindow, buff);
 	if(strcmp(buff, "") == 0) return "";
-	strcat(buffHistory, buff);
-	strcat(buffHistory, "\n");
+	
+	buffHistoryPtr++;
+
+	buffHistory = realloc(buffHistory, sizeof(void*) * buffHistoryPtr);
+	buffHistory[buffHistoryPtr-1] = (char *) malloc(sizeof(buff));
+	strcpy(buffHistory[buffHistoryPtr-1], buff);
 
 	return buff;
 }
@@ -801,7 +806,7 @@ help:
 			NextInstruction();
 		}else if(input[0] == 'b'){
 			if(!AddBreakPoint(input)){
-				strcat(buffHistory, "invalid address");
+				strcat(buffHistory[buffHistoryPtr-1], " < Invalid Address");
 			}
 			lastInst = NULL;
 		}else if(input[0] == '/'){
@@ -811,11 +816,17 @@ help:
 			}
 			lastInst = NULL;
 		}else if(input[0] == 'c'){
-			memset(buffHistory, '\0', sizeof(buffHistory)/sizeof(char));
+			for(size_t i = 0; i < buffHistoryPtr; ++i){
+				// Free commands string
+				if(buffHistory[i] != NULL) free(buffHistory[i]);
+			}
+			free(buffHistory);
+			buffHistory = NULL;
+			buffHistoryPtr = 0;
 			lastInst = "c";
 		}else{
 			if(strcmp(input, "") != 0)
-				strcat(buffHistory, "Invalid command");
+				strcat(buffHistory[buffHistoryPtr-1], " < Invalid command");
 		}
 
 		DrawRegisterWindow();
