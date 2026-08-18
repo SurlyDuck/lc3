@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <signal.h>
 #include <termios.h>
 #include <unistd.h>
@@ -24,6 +25,12 @@
 #define PUTSP           0x24
 #define HALT            0x25
 #define MEM_ADDRESSES_NUM (1<<16)
+
+#define OS_KBSR 0xFE00     // keyboard status register
+#define OS_KBDR 0xFE02     // keyboard data register
+#define OS_DSR  0xFE04     // display status register
+#define OS_DDR  0xFE06     // display data register
+#define OS_MCR  0xFFFE     // machine control register
 
 enum {
 	REG0 = 0,
@@ -82,7 +89,10 @@ struct termios oldTerminalMode;
 status machineStatus = RUNNING;
 mode currentMode = CLI;
 
+// Foward declarations in here
 void AddCharacterToOutput(char value);
+
+
 
 void SetOldterminalMode(){
 	tcsetattr(STDIN_FILENO, TCSANOW, &oldTerminalMode); 
@@ -155,24 +165,6 @@ bool LoadProgram(const char *path){
 	return true;
 }
 
-uint16_t SEXT(uint16_t num, int MODE){
-	if(num >> (MODE - 1) & 1){
-		return num | (0xFFFF << MODE);
-	}
-
-	return num;
-}
-
-void setcc(uint8_t DR){
-	if(reg[DR] >> 15 & 1){
-		reg[REG_COND] = FL_NEG;
-	}else if(reg[DR] == 0){
-		reg[REG_COND] = FL_ZRO;
-	}else{
-		reg[REG_COND] = FL_POS;
-	}
-}
-
 #define MAX_INPUT_BUFFER_LENGTH 1024
 static uint16_t inputBuffer[MAX_INPUT_BUFFER_LENGTH] = {0};
 static uint16_t inputBufferPtr = 0;
@@ -191,11 +183,6 @@ uint16_t GetFromInputBuffer(){
 	return inputBuffer[--inputBufferPtr];
 }
 
-#define OS_KBSR 0xFE00     // keyboard status register
-#define OS_KBDR 0xFE02     // keyboard data register
-#define OS_DSR  0xFE04     // display status register
-#define OS_DDR  0xFE06     // display data register
-#define OS_MCR  0xFFFE     // machine control register
 
 uint16_t GetFromMemory(uint16_t adr){
 	assert(memory[OS_MCR] >> 15);
@@ -211,6 +198,7 @@ uint16_t GetFromMemory(uint16_t adr){
 	}else if(adr == OS_KBDR && (memory[OS_KBSR] >> 15)){
 		if (currentMode != DEBUGGER)
 			memory[OS_KBDR] = getchar();
+
 		else 
 			memory[OS_KBDR] = GetFromInputBuffer();
 	}
@@ -232,6 +220,24 @@ void UpdateToMemory(uint16_t adr, uint16_t value){
 	}
 
 	memory[adr] = value;
+}
+
+uint16_t SEXT(uint16_t num, int MODE){
+	if(num >> (MODE - 1) & 1){
+		return num | (0xFFFF << MODE);
+	}
+
+	return num;
+}
+
+void setcc(uint8_t DR){
+	if(reg[DR] >> 15 & 1){
+		reg[REG_COND] = FL_NEG;
+	}else if(reg[DR] == 0){
+		reg[REG_COND] = FL_ZRO;
+	}else{
+		reg[REG_COND] = FL_POS;
+	}
 }
 
 //------------------------------------------------------------------------------------
@@ -509,7 +515,7 @@ void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 }
 
 //------------------------------------------------------------------------------------
-// Curses
+// Curses/debugger
 //------------------------------------------------------------------------------------
 int terminalColumns;
 int terminalRows;
@@ -524,7 +530,7 @@ void InitCurses(){
 	echo();
 
 	getmaxyx(stdscr,terminalRows, terminalColumns);
-	assert(terminalRows > 20 && terminalColumns > 80 && "Terminal too small");
+	assert(terminalRows > 20 && terminalColumns > 100 && "Terminal too small");
 	refresh();
 }
 
@@ -536,17 +542,19 @@ WINDOW *CreateNewWindow(int rows, int cols, int y, int x){
 	return win;
 }
 
-
+// TODO: add this to a command called `info` or `help` and increase the input window size.
 void DrawInfoWindow(){
 	int cols = 0;
 	getmaxyx(infoWindow, cols, cols);
 	mvwprintw(infoWindow, 0, cols /2 - 2, "INFO");
-	mvwprintw(infoWindow, 1, 1, "`q` or `quit` --> exit debugger");
-	mvwprintw(infoWindow, 2, 1, "`n` or `next` --> next instruction");
-	mvwprintw(infoWindow, 3, 1, "`r` or `run`  --> run program until breakpoint");
-	mvwprintw(infoWindow, 4, 1, "`b` x0000-xFFFF  --> add breakpoint to address");
-	mvwprintw(infoWindow, 5, 1, "`/` char --> add a char to the input buffer (LIFO)");
-	mvwprintw(infoWindow, 6, 1, "`c` or `cls` --> clear command window");
+	mvwprintw(infoWindow, 1, 1, "`q` --> exit debugger");
+	mvwprintw(infoWindow, 2, 1, "`n` --> next instruction");
+	mvwprintw(infoWindow, 3, 1, "`r` --> run program until breakpoint");
+	mvwprintw(infoWindow, 4, 1, "`b` x0000-xFFFF --> add breakpoint to address");
+	mvwprintw(infoWindow, 5, 1, "`rb` x0000-xFFFF --> remove breakpoint");
+	mvwprintw(infoWindow, 6, 1, "`lb` --> list breakpoints");
+	mvwprintw(infoWindow, 7, 1, "`in char` --> add char to the input buffer (LIFO)");
+	mvwprintw(infoWindow, 8, 1, "`c` --> clear command window");
 	wrefresh(infoWindow);
 }
 
@@ -696,11 +704,31 @@ void CreateAllWindows(){
 }
 
 //------------------------------------------------------------------------------------
-// Machine operation
+// Breakpoints
 //------------------------------------------------------------------------------------
-bool AddBreakPoint(){
-	return false;
+uint16_t bnum = 0;
+bool breakpoints[MEM_ADDRESSES_NUM] = {0};
+
+void AddBreakPoint(uint16_t adr){
+	breakpoints[adr] = true;
+	bnum++;
 }
+
+bool RemoveBreakPoint(){
+	return true;
+}
+
+bool IsOnBreakPoint(uint16_t adr){
+	return true;
+}
+
+uint16_t *GetBreakPoints(){
+	return NULL;
+}
+
+//------------------------------------------------------------------------------------
+// Machine loop 
+//------------------------------------------------------------------------------------
 
 void NextInstruction(){
 	uint16_t opcode = memory[reg[REG_PC]] >> 12;
@@ -797,19 +825,48 @@ help:
 
 	// Debugger mode
 	while(currentMode == DEBUGGER){
-		const char *input = DrawInputWindow();
-		if(strcmp(input, "quit") == 0 || strcmp(input, "q") == 0) {endwin(); return 0;}
-		if(strcmp(input, "") == 0 && lastInst != NULL) input = lastInst;
+		const char *input = NULL;
+		if (machineStatus == PAUSED){
+			input = DrawInputWindow();
+			if(strcmp(input, "quit") == 0 || strcmp(input, "q") == 0) {endwin(); return 0;}
+			if(strcmp(input, "") == 0 && lastInst != NULL) input = lastInst;
+		}else{
+			
+		}
 
 		if(input[0] == 'n') {
 			lastInst = "n";
 			NextInstruction();
-		}else if(input[0] == 'b'){
-			if(!AddBreakPoint(input)){
-				strcat(buffHistory[buffHistoryPtr-1], " < Invalid Address");
+		}else if(input[0] == 'b'){ // Breakpoints
+			char temp[50] = {0};
+			bool foundDigit = false;
+			int startNum = 1;
+			for(int i = 1; input[i] != '\0'; ++i) 
+				if(isxdigit(input[i]) && input[i] != ' ') {
+					if(!foundDigit){ 
+						startNum = i;
+						foundDigit = true;
+					}
+				}else if(foundDigit){
+					foundDigit = false;
+					break;
+				}
+			if (!foundDigit){ // no hex number found
+				strcat(buffHistory[buffHistoryPtr-1], " --> Invalid Address");
+			}else{
+				memcpy(temp, &input[startNum], 50);
+				long long address = strtoll(temp, NULL, 16);
+				if(address > 1<<16){
+					strcat(buffHistory[buffHistoryPtr-1], " --> Invalid Address");
+				}else{
+					char result[128] = {0};	
+					sprintf(result, " --> Breakpoint added to %lld: ", address);
+					strcat(buffHistory[buffHistoryPtr-1], result);
+				}
 			}
+
 			lastInst = NULL;
-		}else if(input[0] == '/'){
+		}else if(input[0] == '/'){ 
 			for(int i = 1; input[i] != '\0'; ++i){
 				AddToInputBuffer(input[i]);
 				lastInst = "";
@@ -817,7 +874,7 @@ help:
 			lastInst = NULL;
 		}else if(input[0] == 'c'){
 			for(size_t i = 0; i < buffHistoryPtr; ++i){
-				// Free commands string
+				// Free command strings
 				if(buffHistory[i] != NULL) free(buffHistory[i]);
 			}
 			free(buffHistory);
