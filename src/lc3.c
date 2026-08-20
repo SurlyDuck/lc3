@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE
+#define _XOPEN_SOURCE 500
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -126,8 +126,6 @@ bool IsKeyPressed(){
 //------------------------------------------------------------------------------------
 // Debugger and memory operations
 //------------------------------------------------------------------------------------
-static uint16_t bnum = 0;
-bool breakpoints[MEM_ADDRESSES_NUM] = {0};
 
 // Command history buffer used by the input window
 // This is different from input buffer, that loads user characters into 
@@ -135,6 +133,9 @@ bool breakpoints[MEM_ADDRESSES_NUM] = {0};
 static char buff[120] = {0};
 static char **buffHistory = NULL;
 static size_t buffHistoryPtr = 0;
+
+static uint16_t bnum = 0;
+bool breakpoints[MEM_ADDRESSES_NUM] = {0};
 
 void AddBreakPoint(uint16_t adr){
 	breakpoints[adr] = true;
@@ -146,7 +147,7 @@ bool RemoveBreakPoint(){
 }
 
 bool IsOnBreakPoint(uint16_t adr){
-	return true;
+	return breakpoints[adr];
 }
 
 uint16_t *GetBreakPoints(){
@@ -423,7 +424,7 @@ void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 			if(instruction >> 5 & 1){
 				int16_t num = instruction & 0x1F;
 				if(instruction & 0x10) num |= 0xFFE0;
-				sprintf(buffer, "0x%04X", (uint16_t) num);
+				sprintf(buffer, "x%04X", (uint16_t) num);
 				strcat(dest, buffer);
 				sprintf(buffer, " (#%d)",num);
 				strcat(dest, buffer);
@@ -438,7 +439,7 @@ void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 			if(instruction >> 5 & 1){
 				int16_t num = instruction & 0x1F;
 				if(instruction & 0x10) num |= 0xFFE0;
-				sprintf(buffer, "0x%04X", (uint16_t) num);
+				sprintf(buffer, "x%04X", (uint16_t) num);
 				strcat(dest, buffer);
 				sprintf(buffer, " (#%d)",num);
 				strcat(dest, buffer);
@@ -453,7 +454,7 @@ void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 			if(instruction >> 9 & 1) strcat(dest, "p");
 			
 			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
-				sprintf(buffer, "0x%04X", adr);
+				sprintf(buffer, "x%04X", adr);
 			SPACE;
 			strcat(dest, buffer);
 			break;
@@ -465,7 +466,7 @@ void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 			if(instruction >> 11 & 1){
 				strcat(dest, "JSR ");
 				int16_t adr = SEXT(instruction & 0x07FF, PCOFFSET11) + pc + 1;
-				sprintf(buffer, "0x%04X", adr);
+				sprintf(buffer, "x%04X", adr);
 				strcat(dest, buffer);
 			}else{
 				strcat(dest, "JSRR ");
@@ -476,7 +477,7 @@ void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 			strcat(dest, "LD ");
 			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
 			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
-			sprintf(buffer, "0x%04X", adr);
+			sprintf(buffer, "x%04X", adr);
 			strcat(dest, buffer);
 			break;
 		}case OP_LDR:{
@@ -484,21 +485,21 @@ void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
 			strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
 			int16_t adr = SEXT(instruction & 0x3F, PCOFFSET6);
-			sprintf(buffer, "0x%04X", adr);
+			sprintf(buffer, "x%04X", adr);
 			strcat(dest, buffer);
 			break;
 		}case OP_LDI: {
 			strcat(dest, "LDI ");
 			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
 			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
-			sprintf(buffer, "0x%04X", adr);
+			sprintf(buffer, "x%04X", adr);
 			strcat(dest, buffer);
 			break;
 		}case OP_LEA:{
 			strcat(dest, "LEA ");
 			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
 			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
-			sprintf(buffer, "0x%04X", adr);
+			sprintf(buffer, "x%04X", adr);
 			strcat(dest, buffer);
 			break;
 		}case OP_NOT:{
@@ -513,7 +514,7 @@ void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 			strcat(dest, "STI ");
 			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
 			uint16_t adr = memory[(uint16_t)(SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1)];
-			sprintf(buffer, "0x%04X", adr);
+			sprintf(buffer, "x%04X", adr);
 			strcat(dest, buffer);
 			break;
 		}
@@ -522,7 +523,7 @@ void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
 			strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
 			int16_t adr = SEXT(instruction & 0x003F, PCOFFSET6);
-			sprintf(buffer, "0x%04X", adr);
+			sprintf(buffer, "x%04X", adr);
 			strcat(dest, buffer);
 			break;
 		}
@@ -531,7 +532,7 @@ void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
 			strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
 			int16_t adr = SEXT(instruction & 0x003F, PCOFFSET6);
-			sprintf(buffer, "0x%04X", adr);
+			sprintf(buffer, "x%04X", adr);
 			strcat(dest, buffer);
 			break;
 		}
@@ -653,8 +654,8 @@ void DrawMainWindow(){
 	char instr[INSTRUCTION_TEXT_LEN] = {0};
 	for(int i = 0; i < rows-3; ++i){
 		if(!i) wattron(mainWindow, A_STANDOUT);
-		mvwprintw(mainWindow, i+2, 1, "0x%04X", reg[REG_PC] + i);
-		mvwprintw(mainWindow, i+2, 10, "0x%04X", memory[reg[REG_PC] + i]);
+		mvwprintw(mainWindow, i+2, 1, "x%04X", reg[REG_PC] + i);
+		mvwprintw(mainWindow, i+2, 10, "x%04X", memory[reg[REG_PC] + i]);
 		disassemble(instr, memory[reg[REG_PC] + i], reg[REG_PC] + i);
 		mvwprintw(mainWindow, i+2, 19, "%s",instr);
 		memset(instr, '\0', INSTRUCTION_TEXT_LEN);
@@ -766,10 +767,6 @@ void NextInstruction(){
 void RestartMachine(){
 	/* TODO: Restart from where the program originally started */
 	reg[REG_PC] = 0x3000;
-	if(currentMode == DEBUGGER)
-		machineStatus = PAUSED;
-	else
-		machineStatus = RUNNING;
 	/* TODO: Reset all memory mapped registers */
 	memory[OS_MCR] = 0xF000;
 	memory[OS_DDR] = 0x0000;
@@ -782,12 +779,15 @@ void RestartMachine(){
 	reg[REG5] = 0;
 	reg[REG6] = 0;
 	reg[REG7] = 0;
+	machineStatus = RUNNING;
 
 	if(currentMode != DEBUGGER) return;
-
+	machineStatus = PAUSED;
 	werase(inputWindow);
 	memset(outputBuffer, '\0', OUTPUT_BUFFER_LENGTH);
 	outputPtr = 0;
+
+	memset(breakpoints, 0, sizeof(breakpoints)/sizeof(breakpoints[1]));
 
 	DrawRegisterWindow();
 	DrawMainWindow();
@@ -856,9 +856,20 @@ help:
 				RestartMachine();
 				continue;
 			}
-
 		}else if(machineStatus == RUNNING){
-
+			if(IsOnBreakPoint(reg[REG_PC])){
+				char msg[256] = {0};	
+				sprintf(msg, "Breakpoint reached at <%04X>", reg[REG_PC]);
+				strcpy(buffHistory[buffHistoryPtr-1], msg);
+				machineStatus = PAUSED;
+			}else{
+				NextInstruction();
+			}
+			DrawRegisterWindow();
+			DrawMainWindow();
+			DrawOutputWindow();
+			usleep(500);
+			continue;
 		}
 
 		if(input[0] == 'n') {
@@ -886,6 +897,7 @@ help:
 				if(address > 1<<16){
 					strcat(buffHistory[buffHistoryPtr-1], " --> Invalid Address");
 				}else{
+					AddBreakPoint(address);
 					char result[128] = {0};	
 					sprintf(result, " --> Breakpoint added to %lld: ", address);
 					strcat(buffHistory[buffHistoryPtr-1], result);
@@ -902,6 +914,9 @@ help:
 		}else if(input[0] == 'c'){
 			ClearInputBuffer();
 			lastInst = "c";
+		}else if(input[0] == 'r'){
+			machineStatus = RUNNING;
+			lastInst = "r";
 		}else{
 			if(strcmp(input, "") != 0)
 				strcat(buffHistory[buffHistoryPtr-1], " < Invalid command");
