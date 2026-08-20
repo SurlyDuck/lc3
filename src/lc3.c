@@ -83,16 +83,15 @@ typedef enum{
 	EMBEDDED
 }mode;
 
-uint16_t memory[MEM_ADDRESSES_NUM];
-uint16_t reg[REG_COUNT];
-struct termios oldTerminalMode;
-status machineStatus = RUNNING;
-mode currentMode = CLI;
+// Globals
+static uint16_t memory[MEM_ADDRESSES_NUM];
+static uint16_t reg[REG_COUNT];
+static struct termios oldTerminalMode;
+static status machineStatus = RUNNING;
+static mode currentMode = CLI;
 
 // Foward declarations in here
 void AddCharacterToOutput(char value);
-
-
 
 void SetOldterminalMode(){
 	tcsetattr(STDIN_FILENO, TCSANOW, &oldTerminalMode); 
@@ -105,7 +104,7 @@ void HandleTerminalInterrupt(){
 }
 
 void SetNewTerminalMode(){
-	/* stop input buffering and echo mode */
+	// disable key buffering and echoing
 	tcgetattr(STDIN_FILENO, &oldTerminalMode);
 	struct termios newTerminalMode = oldTerminalMode;
 	newTerminalMode.c_lflag &= ~(ECHO | ICANON);
@@ -116,14 +115,42 @@ struct pollfd fds[1] = {
 	{.fd = STDIN_FILENO, .events = POLLIN}
 };
 bool IsKeyPressed(){
-	int timeout = 10;
-	//fds[0].fd = STDIN_FILENO;
-	//fds[0].events = POLLIN;
+	int timeout = 10; //TODO: poll blocks the thread and this is slowing down the machine
 	int ret = poll(fds,1,timeout);
 
 	if(ret > 0) return true;
 
 	return false;
+}
+
+//------------------------------------------------------------------------------------
+// Debugger and memory operations
+//------------------------------------------------------------------------------------
+static uint16_t bnum = 0;
+bool breakpoints[MEM_ADDRESSES_NUM] = {0};
+
+// Command history buffer used by the input window
+// This is different from input buffer, that loads user characters into 
+// the keyboard data register (xFE02) when theres a reading operation
+static char buff[120] = {0};
+static char **buffHistory = NULL;
+static size_t buffHistoryPtr = 0;
+
+void AddBreakPoint(uint16_t adr){
+	breakpoints[adr] = true;
+	bnum++;
+}
+
+bool RemoveBreakPoint(){
+	return true;
+}
+
+bool IsOnBreakPoint(uint16_t adr){
+	return true;
+}
+
+uint16_t *GetBreakPoints(){
+	return NULL;
 }
 
 void LoadOS(){
@@ -183,6 +210,15 @@ uint16_t GetFromInputBuffer(){
 	return inputBuffer[--inputBufferPtr];
 }
 
+void ClearInputBuffer(){
+	for(size_t i = 0; i < buffHistoryPtr; ++i){
+		// Free command strings
+		if(buffHistory[i] != NULL) free(buffHistory[i]);
+	}
+	free(buffHistory);
+	buffHistory = NULL;
+	buffHistoryPtr = 0;
+}
 
 uint16_t GetFromMemory(uint16_t adr){
 	assert(memory[OS_MCR] >> 15);
@@ -558,9 +594,6 @@ void DrawInfoWindow(){
 	wrefresh(infoWindow);
 }
 
-static char buff[120] = {0};
-static char **buffHistory = NULL;
-static size_t buffHistoryPtr = 0;
 // TODO: this is pretty bad
 const char *DrawInputWindow(){
 	size_t rows, cols;
@@ -703,28 +736,6 @@ void CreateAllWindows(){
 	DrawInfoWindow();
 }
 
-//------------------------------------------------------------------------------------
-// Breakpoints
-//------------------------------------------------------------------------------------
-uint16_t bnum = 0;
-bool breakpoints[MEM_ADDRESSES_NUM] = {0};
-
-void AddBreakPoint(uint16_t adr){
-	breakpoints[adr] = true;
-	bnum++;
-}
-
-bool RemoveBreakPoint(){
-	return true;
-}
-
-bool IsOnBreakPoint(uint16_t adr){
-	return true;
-}
-
-uint16_t *GetBreakPoints(){
-	return NULL;
-}
 
 //------------------------------------------------------------------------------------
 // Machine loop 
@@ -755,7 +766,10 @@ void NextInstruction(){
 void RestartMachine(){
 	/* TODO: Restart from where the program originally started */
 	reg[REG_PC] = 0x3000;
-	machineStatus = RUNNING;
+	if(currentMode == DEBUGGER)
+		machineStatus = PAUSED;
+	else
+		machineStatus = RUNNING;
 	/* TODO: Reset all memory mapped registers */
 	memory[OS_MCR] = 0xF000;
 	memory[OS_DDR] = 0x0000;
@@ -826,12 +840,25 @@ help:
 	// Debugger mode
 	while(currentMode == DEBUGGER){
 		const char *input = NULL;
-		if (machineStatus == PAUSED){
+		if(machineStatus == PAUSED){
 			input = DrawInputWindow();
 			if(strcmp(input, "quit") == 0 || strcmp(input, "q") == 0) {endwin(); return 0;}
 			if(strcmp(input, "") == 0 && lastInst != NULL) input = lastInst;
-		}else{
-			
+		}else if(machineStatus == HALTED){
+			strcpy(buffHistory[buffHistoryPtr-1], "Machine halted. Restart? (y/n): ");
+			input = DrawInputWindow();
+
+			if(strcmp(input, "n") == 0 || strcmp(input, "N") == 0) {
+				endwin(); 
+				return 0;
+			}else{
+				ClearInputBuffer();
+				RestartMachine();
+				continue;
+			}
+
+		}else if(machineStatus == RUNNING){
+
 		}
 
 		if(input[0] == 'n') {
@@ -873,13 +900,7 @@ help:
 			}
 			lastInst = NULL;
 		}else if(input[0] == 'c'){
-			for(size_t i = 0; i < buffHistoryPtr; ++i){
-				// Free command strings
-				if(buffHistory[i] != NULL) free(buffHistory[i]);
-			}
-			free(buffHistory);
-			buffHistory = NULL;
-			buffHistoryPtr = 0;
+			ClearInputBuffer();
 			lastInst = "c";
 		}else{
 			if(strcmp(input, "") != 0)
@@ -890,18 +911,6 @@ help:
 		DrawMainWindow();
 		DrawOutputWindow();
 
-		if(machineStatus == HALTED){
-			wprintw(inputWindow, "\nMachine halted. Restart? (y/n): ");
-			char ans[128];
-			wgetstr(inputWindow, ans);
-
-			if(strcmp(ans, "n") == 0){
-				endwin();
-				return 0;
-			}else{
-				RestartMachine();
-			}
-		}
 	}
 	
 	// CLI mode
