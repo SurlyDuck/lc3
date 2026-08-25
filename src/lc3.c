@@ -711,6 +711,7 @@ void DrawOutputWindow(){
 	
 	werase(outputWindow);
 	box(outputWindow, 0, 0);
+	mvwprintw(outputWindow, 0, columns/2-3, "Output");
 	wmove(outputWindow, 1, 1);
 	for(int i = start; i < outputPtr; ++i){
 		getyx(outputWindow, y, x);
@@ -725,16 +726,59 @@ void DrawOutputWindow(){
 	wrefresh(outputWindow);
 }
 
+void PrintHelpMessage(WINDOW *win){
+	// TODO PrintDebuggerCommands()
+	int cols, rows;
+	rows = cols = 0;
+	getmaxyx(win, rows, cols);
+
+	const char *help[] = {
+		"h --> print this help message",
+		"q --> exit debugger",
+		"n --> next instruction",
+		"r --> run program until breakpoint",
+		"b x0000-xFFFF --> add breakpoint to an address",
+		"rb x0000-xFFFF --> remove breakpoint from an address",
+		"lb x0000-xFFFF --> list breakpoints",
+		"in char --> list add a char to the inputer buffer (LIFO)",
+		"c --> clear input window",
+		NULL
+	};
+	
+	wmove(win, 1, 1);
+	int x,y;
+	for(int i = 0; help[i] != NULL; ++i){
+		getyx(win, y, x);
+		if(x == 0) wmove(win, y, 1);
+		if(y > rows-3){ 
+			wprintw(win, "MORE...");
+			wgetch(win);
+			werase(win);
+			box(win, 0, 0);
+			wmove(win, 1, 1);
+		}
+
+		wprintw(win, "%s\n", help[i]);
+		box(win, 0, 0);
+		wrefresh(win);
+	}
+	getyx(win, y, x);
+	wmove(win, y,1);
+	wprintw(win, "CONTINUE...");
+	wgetch(win);
+}
+
 void CreateAllWindows(){
 	mainWindow = CreateNewWindow(terminalRows/1.3,terminalColumns/2,0,0);
 	registerWindow = CreateNewWindow(terminalRows/3,terminalColumns/2,0,terminalColumns/2);
-	outputWindow = CreateNewWindow(terminalRows - terminalRows/1.3,terminalColumns/2,terminalRows/1.3,0);
-	inputWindow = CreateNewWindow(terminalRows - terminalRows/1.3,terminalColumns/2,terminalRows/1.3,terminalColumns/2);
-	infoWindow = CreateNewWindow((terminalRows/1.3)-terminalRows/3,terminalColumns/2,terminalRows/3,terminalColumns/2);
+	inputWindow = CreateNewWindow(terminalRows - terminalRows/1.3,terminalColumns/2,terminalRows/1.3,0);
+	outputWindow = CreateNewWindow(terminalRows - terminalRows/3-1,terminalColumns/2,terminalRows/3,terminalColumns/2);
+	//infoWindow = CreateNewWindow((terminalRows/1.3)-terminalRows/3,terminalColumns/2,terminalRows/3,terminalColumns/2);
 
 	DrawRegisterWindow();
 	DrawMainWindow();
-	DrawInfoWindow();
+	DrawOutputWindow();
+	//DrawInfoWindow()
 }
 
 
@@ -905,18 +949,20 @@ help:
 			}
 
 			lastInst = NULL;
-		}else if(input[0] == '/'){ 
+		}else if(input[0] == '/'){  // Add char to input buffer
 			for(int i = 1; input[i] != '\0'; ++i){
 				AddToInputBuffer(input[i]);
 				lastInst = "";
 			}
 			lastInst = NULL;
-		}else if(input[0] == 'c'){
+		}else if(input[0] == 'c'){ // Clear
 			ClearInputBuffer();
 			lastInst = "c";
-		}else if(input[0] == 'r'){
+		}else if(input[0] == 'r'){ // Run
 			machineStatus = RUNNING;
 			lastInst = "r";
+		}else if(input[0] == 'h'){ // Help
+			PrintHelpMessage(inputWindow);		
 		}else{
 			if(strcmp(input, "") != 0)
 				strcat(buffHistory[buffHistoryPtr-1], " < Invalid command");
