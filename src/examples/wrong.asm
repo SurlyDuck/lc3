@@ -1,20 +1,10 @@
 ;file to test assembler error handling
 .ORIG x3000
 
-AND R4 R4 x0
-AND R0 R0 x0
-LD R0 LETTER
 
-inputloop:        ; Else start reading input.
-  add r4, r4, #1  ; Go to next index in array.
-  add r0, r0, #-1 ; Decrement counter by 1.
-  BRp inputloop   ; Loop if not zero.
+lea r6, pos97   ; Load address of pos97 into r6.
+ldr r6, r6, #0  ; Load contents (pos97) into r6.
 
-LEA R0 TEXT
-PUTS
-HALT
-
-TEXT: .STRINGZ "Over?"
-LETTER: .FILL x6B
+pos97:  .fill #97     ; Constant for converting to ASCII letters (a-z).
 
 .END

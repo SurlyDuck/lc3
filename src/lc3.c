@@ -136,6 +136,7 @@ static size_t buffHistoryPtr = 0;
 
 static uint16_t bnum = 0;
 bool breakpoints[MEM_ADDRESSES_NUM] = {0};
+bool onBreakpoint = false;
 
 void AddBreakPoint(uint16_t adr){
 	breakpoints[adr] = true;
@@ -298,8 +299,8 @@ void ADD_AND(uint16_t instr){
 }
 
 void LDR(uint16_t instr){
-	uint8_t DR    = instr >> 9 & 0x3;
-	uint8_t BASER = instr >> 6 & 0x3;
+	uint8_t DR    = instr >> 9 & 0x7;
+	uint8_t BASER = instr >> 6 & 0x7;
 	uint16_t pcoffset6 = instr & 0x3F;
 	reg[DR] = GetFromMemory(reg[BASER] + SEXT(pcoffset6, PCOFFSET6));
 	
@@ -880,7 +881,6 @@ help:
 	
 	const char *lastInst = NULL;
 	memory[OS_MCR] = 0xF000; // Starts the machine
-
 	// Debugger mode
 	while(currentMode == DEBUGGER){
 		const char *input = NULL;
@@ -901,13 +901,15 @@ help:
 				continue;
 			}
 		}else if(machineStatus == RUNNING){
-			if(IsOnBreakPoint(reg[REG_PC])){
+			if(IsOnBreakPoint(reg[REG_PC]) && !onBreakpoint){
 				char msg[256] = {0};	
 				sprintf(msg, "Breakpoint reached at <%04X>", reg[REG_PC]);
 				strcpy(buffHistory[buffHistoryPtr-1], msg);
 				machineStatus = PAUSED;
+				onBreakpoint = true;
 			}else{
 				NextInstruction();
+				onBreakpoint = false;
 			}
 			DrawRegisterWindow();
 			DrawMainWindow();
