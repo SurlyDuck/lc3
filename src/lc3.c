@@ -740,7 +740,7 @@ void PrintHelpMessage(WINDOW *win){
 		"b x0000-xFFFF --> add breakpoint to an address",
 		"rb x0000-xFFFF --> remove breakpoint from an address",
 		"lb x0000-xFFFF --> list breakpoints",
-		"in char --> list add a char to the inputer buffer (LIFO)",
+		"/char --> add 'char' to the inputer buffer (LIFO)",
 		"c --> clear input window",
 		NULL
 	};
@@ -916,7 +916,7 @@ help:
 			continue;
 		}
 
-		if(input[0] == 'n') {
+		if(input[0] == 'n') { // Next
 			lastInst = "n";
 			NextInstruction();
 		}else if(input[0] == 'b'){ // Breakpoints
@@ -951,6 +951,16 @@ help:
 			lastInst = NULL;
 		}else if(input[0] == '/'){  // Add char to input buffer
 			for(int i = 1; input[i] != '\0'; ++i){
+				if(input[i] == '\\'){
+					// Add escape code
+					switch(input[i+1]){
+						case 'n': AddToInputBuffer('\n'); break;
+						case 't': AddToInputBuffer('\t'); break;
+						default: i++; continue;
+					}
+					i+= 2;
+					continue;
+				}
 				AddToInputBuffer(input[i]);
 				lastInst = "";
 			}

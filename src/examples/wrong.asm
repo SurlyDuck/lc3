@@ -17,7 +17,7 @@ START:
 
 HALT
 
-TEXT: .STRINGZ "Press `a` to exit:"
-LETTER: .STRINGZ "a"
+TEXT: .STRINGZ "Press `enter` to exit:"
+LETTER: .FILL #10
 
 .END
