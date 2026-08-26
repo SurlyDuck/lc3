@@ -281,8 +281,8 @@ void setcc(uint8_t DR){
 // Instructions
 //------------------------------------------------------------------------------------
 void ADD_AND(uint16_t instr){
-	uint8_t DR  = instr >> 9 & 0x3;
-	uint8_t SR1 = instr >> 6 & 0x3;
+	uint8_t DR  = instr >> 9 & 0x7;
+	uint8_t SR1 = instr >> 6 & 0x7;
 	
 	if(instr >> 5 & 1){
 		uint16_t imm5 = SEXT(instr & 0x1F, IMM5);

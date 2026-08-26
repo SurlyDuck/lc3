@@ -1,23 +1,20 @@
 ;file to test assembler error handling
 .ORIG x3000
 
-MESSAGE:
-	AND R0 R0 #0
-	LEA R0 TEXT
-	PUTS
-START:
-	AND R0 R0 #0
-	AND R2 R2 #0
-	LD  R1 LETTER
-	GETC
-	NOT R0 R0
-	ADD R0 R0 #1
-	ADD R2 R0 R1
-	BRNP START
+AND R4 R4 x0
+AND R0 R0 x0
+LD R0 LETTER
 
+inputloop:        ; Else start reading input.
+  add r4, r4, #1  ; Go to next index in array.
+  add r0, r0, #-1 ; Decrement counter by 1.
+  BRp inputloop   ; Loop if not zero.
+
+LEA R0 TEXT
+PUTS
 HALT
 
-TEXT: .STRINGZ "Press `enter` to exit:"
-LETTER: .FILL #10
+TEXT: .STRINGZ "Over?"
+LETTER: .FILL x6B
 
 .END
