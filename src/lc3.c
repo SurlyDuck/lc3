@@ -308,8 +308,8 @@ void LDR(uint16_t instr){
 }
 
 void STR(uint16_t instr){
-	uint8_t SR    = instr >> 9 & 0x3;
-	uint8_t BASER = instr >> 6 & 0x3;
+	uint8_t SR    = instr >> 9 & 0x7;
+	uint8_t BASER = instr >> 6 & 0x7;
 	uint16_t pcoffset6 = instr & 0x3F;
 	
 	UpdateToMemory(reg[BASER] + SEXT(pcoffset6, PCOFFSET6), reg[SR]);
