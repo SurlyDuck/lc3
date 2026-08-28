@@ -155,6 +155,37 @@ uint16_t *GetBreakPoints(){
 	return NULL;
 }
 
+uint32_t GetValidAddressFromString(const char *string){
+	bool foundBeginning = false;
+	bool hasInvalidChar = false;
+	char strTemp[256] = {0};
+	int strPtr = 0;
+
+	for(int i = 0; string[i] != '\0'; ++i){
+		if(string[i] != 'x' && string[i] != 'X'  && !foundBeginning) continue;
+		else if((string[i] == 'x' || string[i] == 'X') && !foundBeginning){
+			foundBeginning = true;
+			continue;
+		}
+		
+		if(!isxdigit(string[i])){
+			hasInvalidChar = true;
+			break;
+		}
+
+		strTemp[strPtr++] = string[i];
+		
+	}
+	
+	if(!hasInvalidChar && foundBeginning){
+		long long num = strtoll(strTemp, NULL, 16);
+		return (uint32_t) num;
+	}
+
+	return MEM_ADDRESSES_NUM+1; // An address higher than MEM_ADDRESSES_NUM is invalid
+}
+
+
 void LoadOS(){
 	uint16_t memPtr = 0;
 	for(unsigned int i = 3; i < __bin_os_obj_len-2; i+=2){
@@ -580,22 +611,6 @@ WINDOW *CreateNewWindow(int rows, int cols, int y, int x){
 	return win;
 }
 
-// TODO: add this to a command called `info` or `help` and increase the input window size.
-void DrawInfoWindow(){
-	int cols = 0;
-	getmaxyx(infoWindow, cols, cols);
-	mvwprintw(infoWindow, 0, cols /2 - 2, "INFO");
-	mvwprintw(infoWindow, 1, 1, "`q` --> exit debugger");
-	mvwprintw(infoWindow, 2, 1, "`n` --> next instruction");
-	mvwprintw(infoWindow, 3, 1, "`r` --> run program until breakpoint");
-	mvwprintw(infoWindow, 4, 1, "`b` x0000-xFFFF --> add breakpoint to address");
-	mvwprintw(infoWindow, 5, 1, "`rb` x0000-xFFFF --> remove breakpoint");
-	mvwprintw(infoWindow, 6, 1, "`lb` --> list breakpoints");
-	mvwprintw(infoWindow, 7, 1, "`in char` --> add char to the input buffer (LIFO)");
-	mvwprintw(infoWindow, 8, 1, "`c` --> clear command window");
-	wrefresh(infoWindow);
-}
-
 // TODO: this is pretty bad
 const char *DrawInputWindow(){
 	size_t rows, cols;
@@ -734,15 +749,16 @@ void PrintHelpMessage(WINDOW *win){
 	getmaxyx(win, rows, cols);
 
 	const char *help[] = {
-		"h --> print this help message",
-		"q --> exit debugger",
-		"n --> next instruction",
-		"r --> run program until breakpoint",
-		"b x0000-xFFFF --> add breakpoint to an address",
-		"rb x0000-xFFFF --> remove breakpoint from an address",
+		"help --> print this help message",
+		"quit --> exit debugger",
+		"next --> next instruction",
+		"run --> run program until breakpoint",
+		"show x0000-xFFFF --> show contents in memory",
+		"break x0000-xFFFF --> add breakpoint",
+		"rb x0000-xFFFF --> remove breakpoint",
 		"lb x0000-xFFFF --> list breakpoints",
 		"/char --> add 'char' to the inputer buffer (LIFO)",
-		"c --> clear input window",
+		"clear --> clear input window",
 		NULL
 	};
 	
@@ -918,36 +934,18 @@ help:
 			continue;
 		}
 
-		if(input[0] == 'n') { // Next
+		if(input[0] == 'n') { // Next instruction
 			lastInst = "n";
 			NextInstruction();
-		}else if(input[0] == 'b'){ // Breakpoints
-			char temp[50] = {0};
-			bool foundDigit = false;
-			int startNum = 1;
-			for(int i = 1; input[i] != '\0'; ++i) 
-				if(isxdigit(input[i]) && input[i] != ' ') {
-					if(!foundDigit){ 
-						startNum = i;
-						foundDigit = true;
-					}
-				}else if(foundDigit){
-					foundDigit = false;
-					break;
-				}
-			if (!foundDigit){ // no hex number found
+		}else if(input[0] == 'b' || input[0] == 'B'){ // Breakpoint - add
+			uint32_t address = GetValidAddressFromString(input);
+			if(address > MEM_ADDRESSES_NUM){
 				strcat(buffHistory[buffHistoryPtr-1], " --> Invalid Address");
 			}else{
-				memcpy(temp, &input[startNum], 50);
-				long long address = strtoll(temp, NULL, 16);
-				if(address > 1<<16){
-					strcat(buffHistory[buffHistoryPtr-1], " --> Invalid Address");
-				}else{
-					AddBreakPoint(address);
-					char result[128] = {0};	
-					sprintf(result, " --> Breakpoint added to %lld: ", address);
-					strcat(buffHistory[buffHistoryPtr-1], result);
-				}
+				AddBreakPoint(address);
+				char result[128] = {0};	
+				sprintf(result, " --> Breakpoint added to %u: ", address);
+				strcat(buffHistory[buffHistoryPtr-1], result);
 			}
 
 			lastInst = NULL;
@@ -967,17 +965,28 @@ help:
 				lastInst = "";
 			}
 			lastInst = NULL;
-		}else if(input[0] == 'c'){ // Clear
+		}else if(input[0] == 'c' || input[0] == 'C'){ // Clear command history
 			ClearInputBuffer();
 			lastInst = "c";
-		}else if(input[0] == 'r'){ // Run
+		}else if(input[0] == 'r' || input[0] == 'R'){ // Run program
 			machineStatus = RUNNING;
 			lastInst = "r";
-		}else if(input[0] == 'h'){ // Help
-			PrintHelpMessage(inputWindow);		
+		}else if(input[0] == 'h' || input[0] == 'H'){ // Help
+			PrintHelpMessage(inputWindow);
+		}else if(input[0] == 's' || input[0] == 'S'){ // Show contents in memory
+			uint32_t address = GetValidAddressFromString(input);
+			if(address > MEM_ADDRESSES_NUM){
+				strcat(buffHistory[buffHistoryPtr-1], " --> Invalid address");
+			}else{
+				uint16_t content = GetFromMemory(address);
+				char temp[256] = {0};
+				sprintf(temp, " --> x%04X", content);
+				strcat(buffHistory[buffHistoryPtr-1], temp);
+				
+			}
 		}else{
 			if(strcmp(input, "") != 0)
-				strcat(buffHistory[buffHistoryPtr-1], " < Invalid command");
+				strcat(buffHistory[buffHistoryPtr-1], " < Invalid command. Try \"help\"");
 		}
 
 		DrawRegisterWindow();
