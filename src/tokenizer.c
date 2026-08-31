@@ -222,7 +222,11 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 			currentTokenCursor = 0;
 			memset(&currentTokenText,'\0', 256);
 			isString = 0;
-			currentStatus = SEARCHING;
+			if(b != ';')
+				currentStatus = SEARCHING;
+			else
+				/* a comment without whitespace stoped the token */
+				currentStatus = IGNORING;
 		}	
 	}	
 	return &tokensArray;
