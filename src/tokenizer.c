@@ -129,10 +129,10 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 		}
 		else if(currentStatus != READING) continue;	
 		
-		if(currentStatus == READING && ((b != ' ' && b != '\t' && b != '\r' && b != '"' && b != '\n' && b != ',' && b != ';') || (isString && b != '"'))){
+		if(currentStatus == READING && ((!isspace(b) && b != '"' && b != ',' && b != ';') || (isString && b != '"'))){
 			currentTokenCursor++;
 			currentToken.text[currentTokenCursor] = b;
-		}else if(currentStatus == READING && ((b == ' ' || b == ',' || b == '\t' || b == '\n') || (isString && b == '"') || (!isString && b == ';'))){
+		}else if(currentStatus == READING && ((isspace(b) || b == ',' ) || (isString && b == '"') || (!isString && b == ';'))){
 			/* get token kind, add to tokens array and keep searching */
 			if(isString){
 				/* need to remove double quotes from the left */
