@@ -112,7 +112,7 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 		++cursor;
 		char b = raw[cursor];
 		if(b == '\n') ++currentLine;
-		if(b == ';') currentStatus = IGNORING;
+		if(b == ';' && currentStatus != READING) currentStatus = IGNORING;
 
 		if((currentStatus == IGNORING && b != '\n')) {
 			raw[cursor] = ' ';
@@ -120,7 +120,7 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 		}
 		else if(currentStatus == IGNORING) currentStatus = SEARCHING;
 
-		if(currentStatus == SEARCHING && (b != ' ' && b != '\t' && b != '\n')){
+		if(currentStatus == SEARCHING && (b != ' ' && b != '\t' && b != '\n' && b != '\r')){
 			if(b == '"') isString = 1; 
 			else currentTokenText[currentTokenCursor] = b; 
 			currentToken = (token) {currentLine, currentTokenText, currentTokenCursor, KIND_INVALID};
@@ -129,10 +129,10 @@ tokens* InitTokenizer(char *raw, size_t rawSize){
 		}
 		else if(currentStatus != READING) continue;	
 		
-		if(currentStatus == READING && ((b != ' ' && b != '\t' && b != '"' && b != '\n' && b != ',') || (isString && b != '"'))){
+		if(currentStatus == READING && ((b != ' ' && b != '\t' && b != '\r' && b != '"' && b != '\n' && b != ',' && b != ';') || (isString && b != '"'))){
 			currentTokenCursor++;
 			currentToken.text[currentTokenCursor] = b;
-		}else if(currentStatus == READING && ((b == ' ' || b == ',' || b == '\t' || b == '\n') || (isString && b == '"'))){
+		}else if(currentStatus == READING && ((b == ' ' || b == ',' || b == '\t' || b == '\n') || (isString && b == '"') || (!isString && b == ';'))){
 			/* get token kind, add to tokens array and keep searching */
 			if(isString){
 				/* need to remove double quotes from the left */
