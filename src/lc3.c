@@ -917,12 +917,22 @@ help:
 				continue;
 			}
 		}else if(machineStatus == RUNNING){
+			int userInput = getch();
+			char msg[256] = {0};	
+
 			if(IsOnBreakPoint(reg[REG_PC]) && !onBreakpoint){
-				char msg[256] = {0};	
 				sprintf(msg, "Breakpoint reached at <%04X>", reg[REG_PC]);
 				strcpy(buffHistory[buffHistoryPtr-1], msg);
 				machineStatus = PAUSED;
 				onBreakpoint = true;
+				timeout(-1);
+				echo();
+			}else if(userInput != ERR){
+				sprintf(msg, "Manual stop");
+				strcpy(buffHistory[buffHistoryPtr-1], msg);
+				machineStatus = PAUSED;
+				timeout(-1);
+				echo();
 			}else{
 				NextInstruction();
 				onBreakpoint = false;
@@ -930,7 +940,7 @@ help:
 			DrawRegisterWindow();
 			DrawMainWindow();
 			DrawOutputWindow();
-			usleep(500);
+			//usleep(500);
 			continue;
 		}
 
@@ -970,6 +980,8 @@ help:
 			lastInst = "c";
 		}else if(input[0] == 'r' || input[0] == 'R'){ // Run program
 			machineStatus = RUNNING;
+			timeout(1);
+			noecho();
 			lastInst = "r";
 		}else if(input[0] == 'h' || input[0] == 'H'){ // Help
 			PrintHelpMessage(inputWindow);
