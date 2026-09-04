@@ -129,7 +129,8 @@ bool IsKeyPressed(){
 
 // Command history buffer used by the input window
 // This is different from input buffer, that loads user characters into 
-// the keyboard data register (xFE02) when theres a reading operation
+// the keyboard data register (xFE02) when theres a reading operation.
+// buff is the last command string.
 static char buff[120] = {0};
 static char **buffHistory = NULL;
 static size_t buffHistoryPtr = 0;
@@ -149,10 +150,6 @@ bool RemoveBreakPoint(){
 
 bool IsOnBreakPoint(uint16_t adr){
 	return breakpoints[adr];
-}
-
-uint16_t *GetBreakPoints(){
-	return NULL;
 }
 
 uint32_t GetValidAddressFromString(const char *string){
@@ -849,6 +846,7 @@ void RestartMachine(){
 	outputPtr = 0;
 
 	memset(breakpoints, 0, sizeof(breakpoints)/sizeof(breakpoints[1]));
+	bnum = 0;
 
 	DrawRegisterWindow();
 	DrawMainWindow();
@@ -978,9 +976,27 @@ help:
 		}else if(input[0] == 'c' || input[0] == 'C'){ // Clear command history
 			ClearInputBuffer();
 			lastInst = "c";
+		}else if(input[0] == 'l' || input[0] == 'L'){ // List breakpoints
+			if(bnum == 0){
+				strcat(buffHistory[buffHistoryPtr-1], "--> no breakpoints");
+			}
+			else{
+				char result[512] = {0};	
+				sprintf(result, " --> Breakpoints at: ");
+				for(size_t adr = 0; adr < MEM_ADDRESSES_NUM; ++adr){
+					if(breakpoints[adr]){
+						char temp[128] = {0};
+						sprintf(temp, "x%04lX; ", adr);
+						strcat(result,temp);
+					}
+				}
+
+				strcat(buffHistory[buffHistoryPtr-1], result);
+			}
+
 		}else if(input[0] == 'r' || input[0] == 'R'){ // Run program
 			machineStatus = RUNNING;
-			timeout(1);
+			timeout(1); 
 			noecho();
 			lastInst = "r";
 		}else if(input[0] == 'h' || input[0] == 'H'){ // Help
