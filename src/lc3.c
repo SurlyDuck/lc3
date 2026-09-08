@@ -648,6 +648,7 @@ const char *DrawInputWindow(){
 	return buff;
 }
 
+uint16_t mainWindowPageStart = 0x3000; // TODO: the debugger must intialize this instead
 void DrawMainWindow(){
 	int cols = 0;
 	int rows = 0;
@@ -665,14 +666,19 @@ void DrawMainWindow(){
 	mvwprintw(mainWindow, 1, 1, "ADR");
 	mvwprintw(mainWindow, 1, 19, "INSTR");
 	char instr[INSTRUCTION_TEXT_LEN] = {0};
+	
+	if(reg[REG_PC] - mainWindowPageStart > rows-4 || reg[REG_PC] < mainWindowPageStart){
+		mainWindowPageStart = reg[REG_PC];
+	}
+
 	for(int i = 0; i < rows-3; ++i){
-		if(!i) wattron(mainWindow, A_STANDOUT);
-		mvwprintw(mainWindow, i+2, 1, "x%04X", reg[REG_PC] + i);
-		mvwprintw(mainWindow, i+2, 10, "x%04X", memory[reg[REG_PC] + i]);
-		disassemble(instr, memory[reg[REG_PC] + i], reg[REG_PC] + i);
+		if(i+mainWindowPageStart == reg[REG_PC]) wattron(mainWindow, A_STANDOUT);
+		mvwprintw(mainWindow, i+2, 1, "x%04X", mainWindowPageStart + i);
+		mvwprintw(mainWindow, i+2, 10, "x%04X", memory[mainWindowPageStart + i]);
+		disassemble(instr, memory[mainWindowPageStart + i], mainWindowPageStart + i);
 		mvwprintw(mainWindow, i+2, 19, "%s",instr);
 		memset(instr, '\0', INSTRUCTION_TEXT_LEN);
-		if(!i) wattroff(mainWindow, A_STANDOUT);
+		if(i+mainWindowPageStart == reg[REG_PC]) wattroff(mainWindow, A_STANDOUT);
 	}
 
 	wrefresh(mainWindow);
