@@ -648,7 +648,8 @@ const char *DrawInputWindow(){
 	return buff;
 }
 
-uint16_t mainWindowPageStart = 0x3000; // TODO: the debugger must intialize this instead
+uint16_t mainWindowPageStart  = 0x3000; // TODO: the debugger must intialize this instead
+bool mainWindowBrowsingMemory = false;
 void DrawMainWindow(){
 	int cols = 0;
 	int rows = 0;
@@ -667,9 +668,10 @@ void DrawMainWindow(){
 	mvwprintw(mainWindow, 1, 19, "INSTR");
 	char instr[INSTRUCTION_TEXT_LEN] = {0};
 	
-	if(reg[REG_PC] - mainWindowPageStart > rows-4 || reg[REG_PC] < mainWindowPageStart){
+	if((reg[REG_PC] - mainWindowPageStart > rows-4 || reg[REG_PC] < mainWindowPageStart) && !mainWindowBrowsingMemory){
 		mainWindowPageStart = reg[REG_PC];
 	}
+	mainWindowBrowsingMemory = false;
 
 	for(int i = 0; i < rows-3; ++i){
 		if(i+mainWindowPageStart == reg[REG_PC]) wattron(mainWindow, A_STANDOUT);
@@ -757,6 +759,9 @@ void PrintHelpMessage(WINDOW *win){
 		"next --> next instruction",
 		"run --> run program until breakpoint",
 		"show x0000-xFFFF --> show contents in memory",
+		"goto x0000-xFFFF --> go to memory page",
+		"down --> go down the memory page",
+		"up --> go up the memory page",
 		"break x0000-xFFFF --> add breakpoint",
 		"rb x0000-xFFFF --> remove breakpoint",
 		"lb x0000-xFFFF --> list breakpoints",
@@ -1007,6 +1012,23 @@ help:
 			lastInst = "r";
 		}else if(input[0] == 'h' || input[0] == 'H'){ // Help
 			PrintHelpMessage(inputWindow);
+		}else if(input[0] == 'd' || input[0] == 'D'){
+			mainWindowBrowsingMemory = true;
+			mainWindowPageStart++;
+			lastInst = "d";
+		}else if(input[0] == 'u' || input[0] == 'U'){
+			mainWindowBrowsingMemory = true;
+			mainWindowPageStart--;
+			lastInst = "u";
+		}else if(input[0] == 'g' || input[0] == 'G'){
+			uint32_t address = GetValidAddressFromString(input);
+			if(address > MEM_ADDRESSES_NUM){
+				strcat(buffHistory[buffHistoryPtr-1], " --> Invalid address");
+			}else{
+				mainWindowBrowsingMemory = true;
+				mainWindowPageStart = address;
+			}
+
 		}else if(input[0] == 's' || input[0] == 'S'){ // Show contents in memory
 			uint32_t address = GetValidAddressFromString(input);
 			if(address > MEM_ADDRESSES_NUM){
@@ -1016,7 +1038,6 @@ help:
 				char temp[256] = {0};
 				sprintf(temp, " --> x%04X", content);
 				strcat(buffHistory[buffHistoryPtr-1], temp);
-				
 			}
 		}else{
 			if(strcmp(input, "") != 0)
