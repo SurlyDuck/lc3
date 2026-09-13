@@ -3,13 +3,13 @@
 CFLAGS:= -ggdb -std=c99 -Wall -Wextra -pedantic 
 CC:= gcc
 
-all: lc3 lcasm
+all: lc3 lcasm test
 
 test:  
 	./tests/test.sh
 
 record:
-	./tests/record.sh
+	./tests/record.sh ./examples ./examples/bin ./tests
 
 lc3: lc3.c os.h
 	$(CC) $(CFLAGS) -o lc3 lc3.c -lncurses
