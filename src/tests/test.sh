@@ -15,12 +15,12 @@ passes=0
 failures=0
 
 for file in "${programs[@]}"; do
-	echo "Testing --> $1/$file.asm"
+	echo -n "Testing --> $1/$file.asm"
 
 	./lcasm -o "$1/bin/$file.obj" "$1/$file.asm"
 	if [[ $? != 0 ]]; then
 		# Failure at assembling no need to test the rest
-		echo -n "Failure --> Couldn't assemble"
+		echo  " --> Failure: Couldn't assemble"
 		failures+=1
 		continue
 	fi
@@ -28,11 +28,12 @@ for file in "${programs[@]}"; do
 	diff -q "$1/bin/$file.obj" "$2/$file.expected.obj"
 	if [[ $? != 0 ]]; then
 		# Failure at machine code comparison
-		echo -n "Failure --> Machine code output differ"
+		echo "--> Failure: Machine code output differ"
 		failures+=1
 		continue
 	fi
-		
+	
+	echo " --> Pass"
 	# TODO: execute and compare output
 
 	index+=1

@@ -2,5 +2,5 @@
 
 ### Programs to create snapshots from and their input ###
 
-programs=('hello' 'counter' 'hello2')
-input=('n' 'abcdefgz\nn' 'n' 'test')
+programs=('hello' 'counter' 'hello2' 'os')
+input=('n' 'abcdefgz\nn' 'n' 'n')
