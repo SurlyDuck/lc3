@@ -6,10 +6,10 @@ CC:= gcc
 all: lc3 lcasm test
 
 test:  
-	./tests/test.sh
+	./tests/test.sh ./examples ./tests
 
 record:
-	./tests/record.sh ./examples ./examples/bin ./tests
+	./tests/record.sh ./examples ./tests
 
 lc3: lc3.c os.h
 	$(CC) $(CFLAGS) -o lc3 lc3.c -lncurses
