@@ -36,6 +36,7 @@ for file in "${programs[@]}"; do
 
 	printf "${input[$index]}" | ./lc3 "$1/bin/$file.obj" > temp_out.txt
 	diff -q "$2/$file.expected.output" temp_out.txt > /dev/null
+	rm temp_out.txt
 	# We won't be using the current index beyond this point
 	index+=1
 
@@ -51,5 +52,6 @@ for file in "${programs[@]}"; do
 done
 
 echo "----------------------------"
-echo "Failures = $failures"
-echo "Passes   = $passes"
+echo "Failures: $failures"
+echo "Passes: $passes"
+echo "Programs: $index"
