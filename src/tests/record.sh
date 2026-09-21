@@ -14,8 +14,6 @@ find $2 -type f -name "*.output" -delete
 find $2 -type f -name "*.obj" -delete
 
 execute_and_record_output(){
-	#echo "Executing $1"
-	
 	printf $2 | ./lc3 $1 >> "$3"
 }
 

@@ -5,7 +5,7 @@
 source ./tests/golden.sh
 
 if [[ $# -lt 2 ]]; then
-	echo "Usage:: ./test.sh /PathToAsmExamples/" /PathToGoldenFiles/
+	echo "Usage:: ./test.sh /PathToAsmExamples/ /PathToGoldenFiles/"
 	exit 1
 fi
 
@@ -25,16 +25,31 @@ for file in "${programs[@]}"; do
 		continue
 	fi
 	
-	diff -q "$1/bin/$file.obj" "$2/$file.expected.obj"
+	diff -q "$1/bin/$file.obj" "$2/$file.expected.obj" > /dev/null
 	if [[ $? != 0 ]]; then
 		# Failure at machine code comparison
-		echo "--> Failure: Machine code output differ"
+		echo " --> Failure: Machine code output differ"
+		failures+=1
+		index+=1
+		continue
+	fi
+
+	printf "${input[$index]}" | ./lc3 "$1/bin/$file.obj" > temp_out.txt
+	diff -q "$2/$file.expected.output" temp_out.txt > /dev/null
+	# We won't be using the current index beyond this point
+	index+=1
+
+	if [[ $? != 0 ]]; then
+		# Failure at program output comparison
+		echo "--> Failure: Program output differ"
 		failures+=1
 		continue
 	fi
 	
 	echo " --> Pass"
-	# TODO: execute and compare output
-
-	index+=1
+	passes+=1
 done
+
+echo "----------------------------"
+echo "Failures = $failures"
+echo "Passes   = $passes"
