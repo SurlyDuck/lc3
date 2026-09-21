@@ -911,6 +911,7 @@ help:
 		const char *input = NULL;
 		if(machineStatus == PAUSED){
 			input = DrawInputWindow();
+			while(isspace(*input)) input++;
 			if(strcmp(input, "quit") == 0 || strcmp(input, "q") == 0) {endwin(); return 0;}
 			if(strcmp(input, "") == 0 && lastInst != NULL) input = lastInst;
 		}else if(machineStatus == HALTED){
