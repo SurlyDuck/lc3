@@ -10,10 +10,11 @@
 
 BR start  ; Branch to the start routine.
 
-newln:  .stringz "\n"
+;newln:  .stringz "\n"
 msg1:   .stringz "If you want to encrypt your message, type: E\nIf you want to decrypt your message, type: D\n"
 msg2:   .stringz "Enter the key you wish to use (single digit from 1 to 9).\n"
 msg3:   .stringz "You may now enter a message of no more than 20 lower case characters; when done press Enter.\n"
+newln:  .stringz "\n" ;<-- L: better to move here so the first subroutines can reach it?
 
 ; Prints out the instructions to the user and reads some user input.
 start:
@@ -30,11 +31,12 @@ start:
   puts          ; Print message2.
 
   in              ; Read user input into R0.
-  lea r0, newln   ; Load address of newline into R0.
+  ;lea r0, newln   ; Load address of newline into R0. <-- L: Losing the key here? 
   lea r1, neg48   ; Load address of neg48 into R1.
   ldr r1, r1, #0  ; Load contents of neg48 into R1 (R1 now holds -48).
   add r2, r0, r1  ; Subtract 48 from the ASCII value and store in R2.
 
+  lea r0, newln   ; Load address of newline into R0. <-- L: Maybe he meant to put it in here?
   puts          ; Print new line.
 
   lea r0, msg3  ; Load address of message3 into R0.

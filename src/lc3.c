@@ -318,7 +318,7 @@ void ADD_AND(uint16_t instr){
 		if(instr >> 12 == OP_ADD)reg[DR] = reg[SR1] + imm5;
 		else reg[DR] = reg[SR1] & imm5;
 	}else{
-		uint8_t SR2 = instr & 0x3;
+		uint8_t SR2 = instr & 0x7;
 		if(instr >> 12 == OP_ADD) reg[DR] = reg[SR1] + reg[SR2];
 		else reg[DR] = reg[SR1] & reg[SR2];
 	}
@@ -911,7 +911,7 @@ help:
 		const char *input = NULL;
 		if(machineStatus == PAUSED){
 			input = DrawInputWindow();
-			while(isspace(*input)) input++;
+			while(isspace(*input) && *input != '\0') input++;
 			if(strcmp(input, "quit") == 0 || strcmp(input, "q") == 0) {endwin(); return 0;}
 			if(strcmp(input, "") == 0 && lastInst != NULL) input = lastInst;
 		}else if(machineStatus == HALTED){
@@ -938,7 +938,7 @@ help:
 				timeout(-1);
 				echo();
 			}else if(userInput != ERR){
-				sprintf(msg, "Manual stop");
+				sprintf(msg, "Manual break");
 				strcpy(buffHistory[buffHistoryPtr-1], msg);
 				machineStatus = PAUSED;
 				timeout(-1);
