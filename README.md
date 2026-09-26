@@ -38,7 +38,7 @@ make
 -A debugger is embedded alongside the virtual machine and can be run from the terminal with -d option:
 
 ```
-	./lc3 -d image.obj
+./lc3 -d image.obj
 ```
 
 -The text-based user interface can be interacted with following commands:
