@@ -1,0 +1,31 @@
+If you want to encrypt your message, type: E
+If you want to decrypt your message, type: D
+
+Input a character> D
+
+Enter the key you wish to use (single digit from 1 to 9).
+
+Input a character> 7
+
+You may now enter a message of no more than 20 lower case characters; when done press Enter.
+
+Input a character> g
+
+Input a character> t
+
+Input a character> o
+
+Input a character> i
+
+Input a character> y
+
+Input a character> o
+
+Input a character> z
+
+Input a character> x
+
+Input a character> 
+
+alicsirp
+The machine has been halted, restart it? (y/n): 

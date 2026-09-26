@@ -14,7 +14,7 @@ BR start  ; Branch to the start routine.
 msg1:   .stringz "If you want to encrypt your message, type: E\nIf you want to decrypt your message, type: D\n"
 msg2:   .stringz "Enter the key you wish to use (single digit from 1 to 9).\n"
 msg3:   .stringz "You may now enter a message of no more than 20 lower case characters; when done press Enter.\n"
-newln:  .stringz "\n" ;<-- L: better to move here so the first subroutines can reach it?
+newln:  .stringz "\n" ;<EDIT>: better to move in here so the first subroutines can reach it
 
 ; Prints out the instructions to the user and reads some user input.
 start:
@@ -31,7 +31,7 @@ start:
   puts          ; Print message2.
 
   in              ; Read user input into R0.
-  ;lea r0, newln   ; Load address of newline into R0. <-- L: Losing the key here? 
+  ;lea r0, newln   ; Load address of newline into R0. <EDIT>: Losing the key here? 
   lea r1, neg48   ; Load address of neg48 into R1.
   ldr r1, r1, #0  ; Load contents of neg48 into R1 (R1 now holds -48).
   add r2, r0, r1  ; Subtract 48 from the ASCII value and store in R2.
@@ -113,10 +113,15 @@ decrypt:
 ; TODO: skip character if it's whitespace
 decryptLoop:
   ldr r0, r4, #0  ; Load contents at array index into R0.
-  not r2, r2      ; Invert key.
+  not r2, r2      ; Invert key. <EDIT>: The key may already be inverted from a previous loop!
   add r2, r2, #1  ; Add 1, key is now negative.
   add r0, r0, r2  ; Subtract key from char and store in R0.
   jsr flipBit     ; Jump to flip bit routine and jump back when done.
+
+  ;<EDIT> I think they forgot to restore the key after a loop. Doing it in here:
+  not r2, r2
+  add r2, r2 #1 
+
   str r6, r4, #0  ; Store the decrypted char in the array (overwrite).
   add r4, r4, #1  ; Increment array index.
   add r5, r5, #-1 ; Decrement counter.
