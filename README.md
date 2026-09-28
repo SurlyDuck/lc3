@@ -44,19 +44,19 @@ make
 -The text-based user interface can be interacted with following commands:
 
 ```
-help --> list all commands
-quit --> exit debugger  
-next --> next instruction  
-run --> run program until breakpoint  
-show x0000-xFFFF --> show contents in memory  
-goto x0000-xFFFF --> go to memory page  
-down --> go down the memory page  
-up --> go up the memory page  
-break x0000-xFFFF --> add breakpoint  
+help or `h`  --> list all commands
+quit or `q`  --> exit debugger  
+next or `n`  --> next instruction  
+run  or `r`  --> run program until breakpoint  
+show or `s` x0000-xFFFF --> show contents in memory  
+goto or `g` x0000-xFFFF --> go to memory page  
+down or `d` --> go down the memory page  
+up  or `u` --> go up the memory page  
+break or `b` x0000-xFFFF --> add breakpoint  
 rb x0000-xFFFF --> remove breakpoint  
 lb x0000-xFFFF --> list breakpoints  
 /char --> add 'char' to the inputer buffer (LIFO)  
-clear --> clear input window  
+clear or `c` --> clear input window  
 ```
 
 ### Resources

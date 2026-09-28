@@ -144,8 +144,9 @@ void AddBreakPoint(uint16_t adr){
 	bnum++;
 }
 
-bool RemoveBreakPoint(){
-	return true;
+void RemoveBreakPoint(uint16_t address){
+	breakpoints[address] = false;
+	bnum--;
 }
 
 bool IsOnBreakPoint(uint16_t adr){
@@ -957,7 +958,7 @@ help:
 		if(input[0] == 'n') { // Next instruction
 			lastInst = "n";
 			NextInstruction();
-		}else if(input[0] == 'b' || input[0] == 'B'){ // Breakpoint - add
+		}else if(input[0] == 'b' || input[0] == 'B'){ // Add breakpoint
 			uint32_t address = GetValidAddressFromString(input);
 			if(address > MEM_ADDRESSES_NUM){
 				strcat(buffHistory[buffHistoryPtr-1], " --> Invalid Address");
@@ -1005,7 +1006,13 @@ help:
 
 				strcat(buffHistory[buffHistoryPtr-1], result);
 			}
-
+		}else if((input[0] == 'r' && input[1] == 'b') || (input[0] == 'R' && input[1] == 'B')){ // Remove breakpoint
+			uint32_t address = GetValidAddressFromString(input);
+			if(address > MEM_ADDRESSES_NUM){
+				strcat(buffHistory[buffHistoryPtr-1], " --> Invalid address");
+			}else{
+				RemoveBreakPoint(address);
+			}
 		}else if(input[0] == 'r' || input[0] == 'R'){ // Run program
 			machineStatus = RUNNING;
 			timeout(1); 
@@ -1013,15 +1020,15 @@ help:
 			lastInst = "r";
 		}else if(input[0] == 'h' || input[0] == 'H'){ // Help
 			PrintHelpMessage(inputWindow);
-		}else if(input[0] == 'd' || input[0] == 'D'){
+		}else if(input[0] == 'd' || input[0] == 'D'){ // Down page
 			mainWindowBrowsingMemory = true;
 			mainWindowPageStart++;
 			lastInst = "d";
-		}else if(input[0] == 'u' || input[0] == 'U'){
+		}else if(input[0] == 'u' || input[0] == 'U'){ // Up page
 			mainWindowBrowsingMemory = true;
 			mainWindowPageStart--;
 			lastInst = "u";
-		}else if(input[0] == 'g' || input[0] == 'G'){
+		}else if(input[0] == 'g' || input[0] == 'G'){ // Goto page
 			uint32_t address = GetValidAddressFromString(input);
 			if(address > MEM_ADDRESSES_NUM){
 				strcat(buffHistory[buffHistoryPtr-1], " --> Invalid address");
