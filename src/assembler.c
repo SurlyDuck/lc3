@@ -1,3 +1,21 @@
+/****************************************************************************************************************
+
+	LC3 Assembler
+	You may use this how you see fit. No Warranty provided. This code is not safe.
+
+	Issues or pull requests at: 
+	https://github.com/SurlyDuck/lc3
+	
+	 HISTORY
+		Using semantic versioning. 
+		Major versions break compatibility.
+	
+		08/26 - 1.0.0
+			- First release.
+
+****************************************************************************************************************/
+
+
 #define _XOPEN_SOURCE
 #include <stdio.h>
 #include <stdlib.h>

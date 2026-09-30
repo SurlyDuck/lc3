@@ -1,3 +1,5 @@
 /src/lcasm
 /src/lc3
 /src/output.obj
+/src/releases
+*.tar
