@@ -1,20 +1,27 @@
-.PHONY: all clean record test release
+.PHONY: all clear record test release
 
 CFLAGS:= -ggdb -std=c99 -Wall -Wextra -pedantic 
 CC:= gcc
 
 LC3_VERSION ?= 1.0.0
 ASM_VERSION ?= 1.0.0
+RELEASE_DIR ?= ./build/
 
 all: lc3 lcasm test release
 
-release: lc3_$(LC3_VERSION).tar lcasm_$(ASM_VERSION).tar
+release: $(RELEASE_DIR)lc3_$(LC3_VERSION).tar.gz $(RELEASE_DIR)lcasm_$(ASM_VERSION).tar.gz
 
-lc3_$(LC3_VERSION).tar: lc3
-	tar -cf $@ $<
+$(RELEASE_DIR)lc3_$(LC3_VERSION).tar.gz: lc3
+	mkdir -p $(RELEASE_DIR)lc3
+	cp lc3   $(RELEASE_DIR)lc3
+	tar -czf $@ -C $(RELEASE_DIR) lc3
+	rm -R ./build/lc3
 
-lcasm_$(ASM_VERSION).tar: lcasm
-	tar -cf $@ $<
+$(RELEASE_DIR)lcasm_$(ASM_VERSION).tar.gz: lcasm
+	mkdir -p $(RELEASE_DIR)lcasm
+	cp lcasm $(RELEASE_DIR)lcasm
+	tar -czf $@ -C $(RELEASE_DIR) lcasm
+	rm -R ./build/lcasm
 
 test:  
 	./tests/test.sh ./examples ./tests
@@ -28,7 +35,7 @@ lc3: lc3.c os.h
 lcasm: assembler.c tokenizer.c tokenizer.h
 	$(CC) $(CFLAGS) -o lcasm assembler.c tokenizer.c -lm
 
-clean:
+clear:
 	rm ./lc3 ./lcasm
-	rm *.tar
+	rm -R ./build
 

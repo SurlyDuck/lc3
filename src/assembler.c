@@ -1,7 +1,7 @@
 /****************************************************************************************************************
 
 	LC3 Assembler
-	You may use this how you see fit. No Warranty provided. This code is not safe.
+	You may use this as you see fit. No Warranty is provided. This code is not safe.
 
 	Issues or pull requests at: 
 	https://github.com/SurlyDuck/lc3
