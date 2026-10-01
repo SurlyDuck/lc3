@@ -9,6 +9,9 @@
 	 HISTORY
 		Using semantic versioning. 
 		Major versions break compatibility.
+		
+		--/26 - x.x.x
+			- Fixed a bug that caused the debugger to stop echoing user input after the machine was halted.
 	
 		08/26 - 1.0.0
 			- First release.
@@ -934,6 +937,7 @@ help:
 			if(strcmp(input, "") == 0 && lastInst != NULL) input = lastInst;
 		}else if(machineStatus == HALTED){
 			strcpy(buffHistory[buffHistoryPtr-1], "Machine halted. Restart? (y/n): ");
+			echo();
 			input = DrawInputWindow();
 
 			if(strcmp(input, "n") == 0 || strcmp(input, "N") == 0) {

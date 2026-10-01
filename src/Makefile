@@ -7,7 +7,7 @@ LC3_VERSION ?= 1.0.0
 ASM_VERSION ?= 1.0.0
 RELEASE_DIR ?= ./build/
 
-all: lc3 lcasm test release
+all: lc3 lcasm test
 
 release: $(RELEASE_DIR)lc3_$(LC3_VERSION).tar.gz $(RELEASE_DIR)lcasm_$(ASM_VERSION).tar.gz
 
