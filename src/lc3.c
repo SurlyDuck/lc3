@@ -11,7 +11,8 @@
 		Major versions break compatibility.
 		
 		--/26 - x.x.x
-			- Fixed a bug that caused the debugger to stop echoing user input after the machine was halted.
+			- Fixed a bug that caused the debugger to stop echoing user input after the machine was halted;
+			- Show breakpoints in the disassembler.
 	
 		08/26 - 1.0.0
 			- First release.
@@ -700,6 +701,7 @@ void DrawMainWindow(){
 		mvwprintw(mainWindow, i+2, 10, "x%04X", memory[mainWindowPageStart + i]);
 		disassemble(instr, memory[mainWindowPageStart + i], mainWindowPageStart + i);
 		mvwprintw(mainWindow, i+2, 19, "%s",instr);
+		if(IsOnBreakPoint(mainWindowPageStart + i)) wprintw(mainWindow, " <-- Breakpoint");
 		memset(instr, '\0', INSTRUCTION_TEXT_LEN);
 		if(i+mainWindowPageStart == reg[REG_PC]) wattroff(mainWindow, A_STANDOUT);
 	}
