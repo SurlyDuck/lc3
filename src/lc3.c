@@ -11,8 +11,9 @@
 		Major versions break compatibility.
 
 
-		xx/2x - 1.1.1
-			- Fixed disassembler string for ST.
+		10/26 - 1.1.1
+			- Fixed disassembler string for ST;
+			- Fixed JSR opcode subroutine.
 		
 		10/26 - 1.1.0
 			- Fixed a bug that caused the debugger to stop echoing user input after the machine was halted;
@@ -385,7 +386,7 @@ void JUMP(uint16_t instr){
 void JSR(uint16_t instr){
 	reg[REG7] = reg[REG_PC];
 	if(instr >> 11 & 1){
-		uint16_t pcoffset11 = instr & 0x03FF;
+		uint16_t pcoffset11 = instr & 0x07FF;
 		reg[REG_PC] = reg[REG_PC] + SEXT(pcoffset11, PCOFFSET11);
 	}else{
 		uint8_t baseR = instr >> 6 & 0x7;
