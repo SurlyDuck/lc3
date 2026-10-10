@@ -9,8 +9,12 @@
 	 HISTORY
 		Using semantic versioning. 
 		Major versions break compatibility.
+
+
+		xx/2x - 1.1.1
+			- Fixed disassembler string for ST.
 		
-		--/26 - x.x.x
+		10/26 - 1.1.0
 			- Fixed a bug that caused the debugger to stop echoing user input after the machine was halted;
 			- Show breakpoints in the disassembler;
 			- Output window scrolling.
@@ -582,8 +586,8 @@ void disassemble(char dest[], uint16_t instruction, uint16_t pc){
 		case OP_ST:{
 			strcat(dest, "ST ");
 			strcat(dest, GetRegisterText(instruction >> 9 & 0x7));
-			strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
-			int16_t adr = SEXT(instruction & 0x003F, PCOFFSET6);
+			//strcat(dest, GetRegisterText(instruction >> 6 & 0x7));
+			int16_t adr = SEXT(instruction & 0x01FF, PCOFFSET9) + pc + 1;
 			sprintf(buffer, "x%04X", adr);
 			strcat(dest, buffer);
 			break;
