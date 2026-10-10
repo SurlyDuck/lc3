@@ -12,7 +12,8 @@
 		
 		--/26 - x.x.x
 			- Fixed a bug that caused the debugger to stop echoing user input after the machine was halted;
-			- Show breakpoints in the disassembler.
+			- Show breakpoints in the disassembler;
+			- Output window scrolling.
 	
 		08/26 - 1.0.0
 			- First release.
@@ -737,8 +738,9 @@ void DrawRegisterWindow(){
 }
 
 #define OUTPUT_BUFFER_LENGTH 1024
+#define OUTPUT_MAX_LINES 512
 char outputBuffer[OUTPUT_BUFFER_LENGTH] = {0};
-int outputPtr = 0;
+size_t outputPtr = 0;
 void AddCharacterToOutput(char c){
 	outputBuffer[outputPtr++] = c;
 
@@ -746,25 +748,50 @@ void AddCharacterToOutput(char c){
 		outputPtr = OUTPUT_BUFFER_LENGTH-1;
 }
 
+
+struct{
+	size_t lineCount;
+	size_t currentLineCursor;
+	size_t characterCount;
+	char **text;
+}lines  = {0};
+
+// Code for scrolling is quite awful, sorry.
+// TODO: refactoring
 void DrawOutputWindow(){
-	int rows, columns, y, x, windowSize,start;
+	size_t rows, columns, y, x, yStart;
 	getmaxyx(outputWindow, rows, columns);
-	windowSize = (rows-2) * (columns-2);
-	if(outputPtr > windowSize) start = outputPtr - windowSize;
-	else start = 0;
+	y = x = 1;
 	
+	if(outputPtr > lines.characterCount){
+		if(lines.lineCount == 0){
+			lines.text    = (char**) malloc(sizeof (char*) * OUTPUT_MAX_LINES);
+			lines.text[0] = (char*)  malloc(512);
+			memset(lines.text[0], 0, 512);
+			lines.lineCount++;
+		}
+
+		if(lines.currentLineCursor > columns-3 || outputBuffer[outputPtr-1] == '\n'){
+			lines.lineCount++;
+			lines.text[lines.lineCount-1] = (char*)  malloc(512);
+			memset(lines.text[lines.lineCount-1], 0, 512);
+			lines.currentLineCursor = 0;
+		}else lines.text[lines.lineCount-1][lines.currentLineCursor++] = outputBuffer[outputPtr-1];
+
+		lines.characterCount++;
+	}
+	
+	if(lines.lineCount > rows-2)
+		yStart = lines.lineCount - (rows-2);
+	else yStart = 0;
+
 	werase(outputWindow);
 	box(outputWindow, 0, 0);
 	mvwprintw(outputWindow, 0, columns/2-3, "Output");
-	wmove(outputWindow, 1, 1);
-	for(int i = start; i < outputPtr; ++i){
-		getyx(outputWindow, y, x);
-		if(outputBuffer[i] == '\n') wmove(outputWindow, y+1, 1);
-		else{
-			waddch(outputWindow, outputBuffer[i]);
-			if(x >= columns-1) wmove(outputWindow, y+1, 1);
-		}
-		
+	wmove(outputWindow, y, x);
+	for(size_t i = yStart; i < lines.lineCount; ++i){
+		mvwprintw(outputWindow, y, x, lines.text[i]);
+		y++;
 	}
 
 	wrefresh(outputWindow);
@@ -876,6 +903,12 @@ void RestartMachine(){
 	if(currentMode != DEBUGGER) return;
 	machineStatus = PAUSED;
 	werase(inputWindow);
+
+	for(size_t i = 0; i < lines.lineCount; ++i){
+		free(lines.text[i]);
+	}
+	free(lines.text);
+	memset(&lines, 0, sizeof(lines));
 	memset(outputBuffer, '\0', OUTPUT_BUFFER_LENGTH);
 	outputPtr = 0;
 
